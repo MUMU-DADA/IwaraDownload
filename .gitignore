@@ -7,6 +7,9 @@
 *.dll
 *.so
 *.dylib
+user.json
+IwaraDownload_*
+IwaraDownload.log
 
 # Test binary, built with `go test -c`
 *.test
@@ -24,4 +27,5 @@ go.work.sum
 # env file
 .env
 
-.idea
+.idea/
+IwaraDownload/
