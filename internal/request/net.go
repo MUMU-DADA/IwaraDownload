@@ -38,6 +38,8 @@ var (
 		"Referer":            "https://www.iwara.tv/",
 		"Priority":           "u=1, i",
 	}
+
+	DelaySwitch bool = true // 是否开启请求延时
 )
 
 const (
@@ -83,6 +85,17 @@ func getWeb(url string, method METHOD, user *model.User, body string, addHeader 
 
 // requestDelay 请求延时
 func requestDelay() {
+	if !DelaySwitch {
+		time.Sleep(time.Second * 3) // 虽然有延时开关,但是至少是3秒
+		return
+	}
+
+	// 首次的请求不延时
+	if lastRequestTimes.IsZero() {
+		lastRequestTimes = time.Now()
+		return
+	}
+
 	if time.Now().After(lastRequestTimes.Add(reqDelay)) {
 		time.Sleep(reqDelay)
 		lastRequestTimes = time.Now()

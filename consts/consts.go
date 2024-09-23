@@ -24,10 +24,13 @@ var (
 
 // 程序运行参数
 type config struct {
-	SaveLog  bool   `flag:"savelog" sort:"l" default:"true" usage:"是否保存日志文件"`      // 是否保存日志文件
-	WorkDIr  string `flag:"workdir" sort:"d" default:"" usage:"下载目录"`              // 下载目录
-	Username string `flag:"username" sort:"u" default:"" usage:"指定用户名,比配置文件优先级要高"` // 指定用户名
-	Password string `flag:"password" sort:"p" default:"" usage:"指定密码,比配置文件优先级要高"`  // 指定密码
+	SaveLog  bool   `flag:"savelog" short:"l" default:"true" usage:"是否保存日志文件"`      // 是否保存日志文件
+	WorkDIr  string `flag:"workdir" short:"d" default:"" usage:"下载目录"`              // 下载目录
+	Username string `flag:"username" short:"u" default:"" usage:"指定用户名,比配置文件优先级要高"` // 指定用户名
+	Password string `flag:"password" short:"p" default:"" usage:"指定密码,比配置文件优先级要高"`  // 指定密码
+
+	Year  int `flag:"year" short:"y" default:"0" usage:"指定年份下载,默认使用当前年份,只要使用了该参数,就只会进行单月份下载任务"`  // 指定年份下载
+	Month int `flag:"month" short:"m" default:"0" usage:"指定月份下载,默认使用当前月份,是要使用了该参数,就只会进行单月份下载任务"` // 指定月份下载
 }
 
 func init() {

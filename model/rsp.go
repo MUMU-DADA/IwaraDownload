@@ -53,7 +53,7 @@ type Result struct {
 	ID              string      `json:"id"`
 	Slug            string      `json:"slug"`
 	Title           string      `json:"title"`
-	Body            string      `json:"body"` // 可以是 nil 或具体类型
+	Body            string      `json:"body"`
 	Status          string      `json:"status"`
 	Rating          string      `json:"rating"`
 	Private         bool        `json:"private"`

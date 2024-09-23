@@ -1,6 +1,7 @@
 package files
 
 import (
+	"IwaraDownload/model"
 	"os"
 	"regexp"
 	"strings"
@@ -75,4 +76,15 @@ func CheckFileExists(filename string) bool {
 		return false
 	}
 	return err == nil
+}
+
+// CheckVideoFileExist 检查指定目录下的视频文件是否存在
+func CheckVideoFileExist(baseName string, dirPath string) string {
+	for k, _ := range model.VideoDefinitionMap {
+		tempName := baseName + " [" + k + "].mp4"
+		if CheckFileExists(dirPath + string(os.PathSeparator) + tempName) {
+			return tempName
+		}
+	}
+	return ""
 }
