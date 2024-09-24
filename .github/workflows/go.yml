@@ -39,7 +39,7 @@ jobs:
           GOOS: ${{ matrix.osarch[0] }}
           GOARCH: ${{ matrix.osarch[1] }}
         run: |
-          GOOS=${{ matrix.osarch[0] }} GOARCH=${{ matrix.osarch[1] }} go build -v -o ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./...
+          GOOS=${{ matrix.osarch[0] }} GOARCH=${{ matrix.osarch[1] }} go build -v -o ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./main.go
 
       - name: Test for ${{ matrix.osarch[0] }}/${{ matrix.osarch[1] }}
         env:
