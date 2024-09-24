@@ -59,6 +59,7 @@ func saveVideoDatabase(filePath string, videoData model.Result, fileData []*mode
 		// 如果没有文件数据,则不更新文件数据
 		addData.Files = oldData.Files
 	}
+	db.VideoMap[videoData.ID] = addData
 
 	// 保存数据库
 	data, err := json.Marshal(db)

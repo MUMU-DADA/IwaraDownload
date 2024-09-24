@@ -45,7 +45,7 @@ var (
 const (
 	setCookies = ""
 	ua         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.100 Safari/537.36" // 浏览器UA
-	reqDelay   = time.Second * 40                                                                                                       // 请求延时
+	reqDelay   = time.Second * 30                                                                                                       // 请求延时
 )
 
 // 保存页面文本到文件
