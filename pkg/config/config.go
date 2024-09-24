@@ -47,10 +47,33 @@ func init() {
 	}
 	if consts.FlagConf.Subscribed {
 		c.Subscribe = consts.FlagConf.Subscribed
+		// 如果命令行开启了订阅模式, 需要关闭热门下载模式
+		c.Hot = false
+	}
+	if consts.FlagConf.Hot {
+		c.Hot = consts.FlagConf.Hot
+		// 如果命令行开启了订阅模式, 需要关闭热门下载模式
+		c.Subscribe = false
+
+		// 如果开启了热门下载模式, 需要设置下载监听页码
+		if consts.FlagConf.HotPageLimit > 0 {
+			// 优先使用命令行参数
+			c.HotPageLimit = consts.FlagConf.HotPageLimit
+		} else if c.HotPageLimit > 0 {
+			// 其次使用配置的参数
+			c.HotPageLimit = 0
+		} else {
+			// 否则使用默认值
+			log.Println("未设置热门下载页数, 使用默认值:", consts.HOT_PAGE_DEFAULT_LIMIT)
+			c.HotPageLimit = consts.HOT_PAGE_DEFAULT_LIMIT
+		}
 	}
 
 	if c.Username == "" || c.Password == "" {
 		log.Fatalln("用户名或密码为空, 请使用 -u 和 -p 指定用户名密码,或者配置好", configFileName, "配置文件")
+	}
+	if c.Hot && c.Subscribe {
+		log.Fatalln("订阅模式和热门模式不能同时开启")
 	}
 
 	Config = c

@@ -14,11 +14,13 @@ import (
 type User struct {
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 登录信息 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	Username    string `json:"username"`    // 用户名
-	Password    string `json:"password"`    // 密码
-	LoginToken  string `json:"loginToken"`  // 登录token
-	AccessToken string `json:"accessToken"` // 访问token
-	Subscribe   bool   `json:"subscribe"`   // 订阅下载模式
+	Username     string `json:"username"`     // 用户名
+	Password     string `json:"password"`     // 密码
+	LoginToken   string `json:"loginToken"`   // 登录token
+	AccessToken  string `json:"accessToken"`  // 访问token
+	Subscribe    bool   `json:"subscribe"`    // 订阅下载模式
+	Hot          bool   `json:"hot"`          // 热门下载模式
+	HotPageLimit int    `json:"hotPageLimit"` // 热门页下载限制
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 登录信息 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 下载条件 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓

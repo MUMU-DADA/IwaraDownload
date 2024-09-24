@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 )
 
 const (
@@ -106,7 +107,14 @@ func GetVideoData(user *model.User, page int) (*model.PageDataRoot, error) {
 
 	url := fmt.Sprintf(apiPageUrl, page)
 	if user.Subscribe {
-		url = url + "&subscribed=true"
+		// 获取订阅的视频
+		url = url + "&sort=date&subscribed=true"
+	} else if user.Hot {
+		// 获取热门视频
+		url = url + "&sort=hot"
+	} else {
+		// 默认全部下载模式,依据时间排序
+		url = url + "&sort=date"
 	}
 	body, err := getWeb(url, GET, user, "", nil)
 	if err != nil {
@@ -173,6 +181,16 @@ func GetVideoDownloadUrl(user *model.User, videoData model.Result) ([]*model.Vid
 	if err != nil {
 		return nil, err
 	}
+
+	if len(videoSrc) < 1 {
+		// 跳过当前视频
+		return nil, fmt.Errorf("获取视频地址为空: %s\n", videoData.ID)
+	}
+
+	// 排序默认下载最清晰的视频
+	sort.Slice(videoSrc, func(i, j int) bool {
+		return model.VideoDefinitionMap[videoSrc[i].Name] > model.VideoDefinitionMap[videoSrc[j].Name]
+	})
 
 	return videoSrc, nil
 }
