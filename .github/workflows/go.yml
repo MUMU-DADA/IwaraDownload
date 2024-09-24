@@ -1,4 +1,4 @@
-# This workflow will build a golang project for multiple OS/Arch combinations and run tests
+# This workflow will build a golang project for multiple OS/Arch combinations and run tests on the default platform
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
 name: Go Cross Compile
@@ -10,7 +10,23 @@ on:
     branches: [ "dev" ]
 
 jobs:
-  build_and_test:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.1'
+
+      - name: Run Tests
+        run: |
+          go test -v ./...
+        continue-on-error: false # 确保测试失败时停止后续步骤
+
+  build_and_upload:
+    needs: test # 确保测试成功后才开始编译
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -40,16 +56,6 @@ jobs:
           GOARCH: ${{ matrix.osarch[1] }}
         run: |
           GOOS=${{ matrix.osarch[0] }} GOARCH=${{ matrix.osarch[1] }} go build -v -o ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./main.go
-
-      - name: Test for ${{ matrix.osarch[0] }}/${{ matrix.osarch[1] }}
-        env:
-          GOOS: ${{ matrix.osarch[0] }}
-          GOARCH: ${{ matrix.osarch[1] }}
-        run: |
-          # 先构建测试二进制文件
-          go test -c -o ./bin/app-test-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./...
-          # 运行测试
-          ./bin/app-test-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
 
       - name: Upload Artifacts
         if: always()
