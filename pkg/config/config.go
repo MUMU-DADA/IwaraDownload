@@ -61,7 +61,7 @@ func init() {
 			c.HotPageLimit = consts.FlagConf.HotPageLimit
 		} else if c.HotPageLimit > 0 {
 			// 其次使用配置的参数
-			c.HotPageLimit = 0
+
 		} else {
 			// 否则使用默认值
 			log.Println("未设置热门下载页数, 使用默认值:", consts.HOT_PAGE_DEFAULT_LIMIT)

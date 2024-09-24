@@ -468,7 +468,7 @@ func main() {
 	if consts.FlagConf.Year != 0 || consts.FlagConf.Month != 0 {
 		log.Println("指定了年份或月份,开始下载指定月份视频")
 		once()
-	} else if consts.FlagConf.Hot {
+	} else if config.Config.Hot {
 		log.Println("指定了热门视频模式,开始下载热门视频")
 		hot()
 	} else {
