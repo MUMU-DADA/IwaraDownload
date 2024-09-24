@@ -21,6 +21,76 @@ var (
 	maxPage int = 50 // 最大页数
 )
 
+// skipVideo 依据配置检查是否跳过视频
+func skipVideo(user *model.User, video model.Result) bool {
+	var hasRules bool
+
+	// 优先匹配指定的条件不进行不跳过
+	// 1. 指定标签
+	if len(user.Tags) > 0 {
+		hasRules = true
+		tempVideoMap := make(map[string]bool)
+		for _, tag := range user.Tags {
+			tempVideoMap[tag] = true
+		}
+		for _, tag := range video.Tags {
+			if tempVideoMap[tag.ID] {
+				// 如果标签在配置中,则跳过当前视频
+				log.Printf("视频标签: %s 在配置中,下载当前视频\n", tag.ID)
+				return false
+			}
+		}
+	}
+	// 2. 指定作者
+	if len(user.Artists) > 0 {
+		hasRules = true
+		for _, artist := range user.Artists {
+			if video.User.Username == artist {
+				// 如果作者在配置中,则跳过当前视频
+				log.Printf("视频作者: %s 在配置中,下载当前视频\n", artist)
+				return false
+			}
+		}
+	}
+
+	// 再检查是否符合禁止条件进行跳过
+	// 1. 禁止标签
+	if len(user.BanTags) > 0 {
+		tempVideoMap := make(map[string]bool)
+		for _, tag := range user.BanTags {
+			tempVideoMap[tag] = true
+		}
+		for _, tag := range video.Tags {
+			if tempVideoMap[tag.ID] {
+				// 如果标签在禁止列表中,则跳过当前视频
+				log.Printf("视频标签: %s 在禁止列表中,跳过当前视频\n", tag.ID)
+				return true
+			}
+		}
+	}
+	// 2. 禁止作者
+	if len(user.BanArtists) > 0 {
+		tempVideoMap := make(map[string]bool)
+		for _, artist := range user.BanArtists {
+			tempVideoMap[artist] = true
+		}
+		if tempVideoMap[video.User.Username] {
+			// 如果作者在禁止列表中,则跳过当前视频
+			log.Printf("视频作者: %s 在禁止列表中,跳过当前视频\n", video.User.Username)
+			return true
+		}
+	}
+	// 3. 检查点赞
+	if user.LikeLimit > 0 && video.NumLikes < user.LikeLimit {
+		// 如果点赞数超过配置,则跳过当前视频
+		log.Printf("视频点赞数: %d,小于配置: %d,跳过当前视频\n", video.NumLikes, user.LikeLimit)
+		return true
+	}
+
+	// 如果一个指定条件都没有配置,则最后默认放行,如果配置了,则最后默认禁止
+	return hasRules
+}
+
 // Month 开始月下载任务
 func Month(user *model.User, year int, month int, lastDownloadTime time.Time) error {
 	log.Println("开始下载", year, "年", month, "月视频")
@@ -74,8 +144,17 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				// 将差值转换为天数
 				days := int(duration.Hours() / 24)
 
-				// 如果当前分页的扫描视频时间远远晚于目标扫描日期范围,则直接大范围跳页 (每超过2天/3页)
+				if user.Subscribe {
+					// 订阅下载模式的分页视频数量明显较少,为了放置跳转过头,使用较小的跳页 (每超过3天/1页)
+					if days > 3 {
+						jumpPage := (days / 3) * 1
+						i += jumpPage
+						log.Println("当前分页视频时间远远早于目标扫描日期范围, 跳", jumpPage, "页")
+						break
+					}
+				}
 				if days > 4 {
+					// 如果当前分页的扫描视频时间远远晚于目标扫描日期范围,则直接大范围跳页 (每超过2天/3页)
 					jumpPage := (days / 2) * 3
 					i += jumpPage
 					log.Println("当前分页视频时间远远晚于目标扫描日期范围, 跳", jumpPage, "页")
@@ -97,16 +176,31 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			}
 			log.Println("视频符合时间范围,继续...")
 
+			// 检查是否需要跳过当前视频
+			if skipVideo(user, video) {
+				continue
+			}
+
 			// 检查文件是否已经被下载,如果被下载则跳过
 			// 尝试从目标路径中获取可能的文件名
-			log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Name, video.Title)
-			checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Name, video.Title))
+			log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
+			checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
 			checkDir := filePath + string(os.PathSeparator)
 			f := files.CheckVideoFileExist(checkName, checkDir)
 			if f != "" {
 				log.Printf("视频已存在: %s 跳过...\n", f)
 				continue
 			}
+			// 检查时会额外检查昵称(可更改的用户名),兼容旧版本下载数据(因为旧版本下载数据使用的是文件名是昵称,为了防止重复下载,特意添加的屎山容错)
+			log.Printf("(检查昵称)正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Name, video.Title)
+			checkName = files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Name, video.Title))
+			checkDir = filePath + string(os.PathSeparator)
+			f = files.CheckVideoFileExist(checkName, checkDir)
+			if f != "" {
+				log.Printf("(检查昵称)视频已存在: %s 跳过...\n", f)
+				continue
+			}
+
 			log.Println("文件不存在,准备获取视频下载地址")
 
 			videoDownload = true
@@ -132,12 +226,8 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
 			// 判断文件是否存在
-			videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Name, video.Title, videoUrl[0].Name))
+			videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
 			videoPath := filePath + string(os.PathSeparator) + videoName
-			if files.CheckFileExists(videoPath) {
-				log.Printf("文件已存在: %s\n", videoPath)
-				continue
-			}
 
 			startDownloadTime := time.Now()
 			log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
@@ -157,6 +247,9 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 }
 
 func loop() {
+	log.Println("开始循环扫描任务")
+	config.Config.PrintLimit()
+
 	lastScanTime := time.Time{}
 	retryTimes := 0
 	for {
@@ -188,8 +281,9 @@ func loop() {
 
 func once() {
 	log.Println("开始单次扫描任务")
-	start := time.Now()
+	config.Config.PrintLimit()
 
+	start := time.Now()
 	mounth := consts.FlagConf.Month
 	year := consts.FlagConf.Year
 	if mounth == 0 {

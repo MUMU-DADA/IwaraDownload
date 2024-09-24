@@ -45,6 +45,9 @@ func init() {
 	if consts.FlagConf.Password != "" {
 		c.Password = consts.FlagConf.Password
 	}
+	if consts.FlagConf.Subscribed {
+		c.Subscribe = consts.FlagConf.Subscribed
+	}
 
 	if c.Username == "" || c.Password == "" {
 		log.Fatalln("用户名或密码为空, 请使用 -u 和 -p 指定用户名密码,或者配置好", configFileName, "配置文件")

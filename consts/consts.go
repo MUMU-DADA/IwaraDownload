@@ -31,6 +31,8 @@ type config struct {
 
 	Year  int `flag:"year" short:"y" default:"0" usage:"指定年份下载,默认使用当前年份,只要使用了该参数,就只会进行单月份下载任务"`  // 指定年份下载
 	Month int `flag:"month" short:"m" default:"0" usage:"指定月份下载,默认使用当前月份,是要使用了该参数,就只会进行单月份下载任务"` // 指定月份下载
+
+	Subscribed bool `flag:"subscribed" short:"s" default:"false" usage:"是否订阅模式下载"` // 订阅模式下载
 }
 
 func init() {

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -11,12 +12,65 @@ import (
 
 // User 用户信息
 type User struct {
-	Username      string         `json:"username"`    // 用户名
-	Password      string         `json:"password"`    // 密码
-	LoginToken    string         `json:"loginToken"`  // 登录token
-	AccessToken   string         `json:"accessToken"` // 访问token
-	Cookies       []*http.Cookie `json:"-"`           // cookie
+
+	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 登录信息 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+	Username    string `json:"username"`    // 用户名
+	Password    string `json:"password"`    // 密码
+	LoginToken  string `json:"loginToken"`  // 登录token
+	AccessToken string `json:"accessToken"` // 访问token
+	Subscribe   bool   `json:"subscribe"`   // 订阅下载模式
+	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 登录信息 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 下载条件 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+	Tags    []string `json:"tags"`    // 下载指定标签
+	Artists []string `json:"artists"` // 下载指定用户的内容
+
+	BanArtists []string `json:"banArtists"` // 禁止下载指定用户的内容
+	BanTags    []string `json:"banTags"`    // 跳过标签
+	LikeLimit  int      `json:"likeLimit"`  // 下载达到目标点赞数量的视频
+	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 下载条件 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 临时数据 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+	Cookies       []*http.Cookie `json:"-"` // cookie
 	authorization string         // 当前使用的jwt
+	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 临时数据 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+}
+
+// PrintLimit 打印下载条件
+func (u *User) PrintLimit() {
+	log.Println("当前下载模式:")
+	if u.Subscribe {
+		log.Println("订阅模式")
+	} else {
+		log.Println("全部模式")
+	}
+
+	log.Println("当前下载条件:")
+	var hasRules bool
+	if len(u.Tags) > 0 {
+		hasRules = true
+		log.Printf("下载标签: %#v", u.Tags)
+	}
+	if len(u.Artists) > 0 {
+		hasRules = true
+		log.Printf("下载用户: %#v", u.Artists)
+	}
+	if len(u.BanTags) > 0 {
+		hasRules = true
+		log.Printf("ban标签: %#v", u.BanTags)
+	}
+	if len(u.BanArtists) > 0 {
+		hasRules = true
+		log.Printf("ban用户: %#v", u.BanArtists)
+	}
+	if u.LikeLimit > 0 {
+		hasRules = true
+		log.Printf("下载点赞数达到: %v", u.LikeLimit)
+	}
+
+	if !hasRules {
+		log.Println("没有设置下载条件,下载所有视频")
+	}
 }
 
 // GetAuthorization 获取当前使用的jwt
