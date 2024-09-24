@@ -31,12 +31,16 @@ jobs:
         with:
           go-version: '1.23.1'
 
+      - name: Ensure output directory exists
+        run: mkdir -p ./bin
+
       - name: Build for ${{ matrix.osarch[0] }}/${{ matrix.osarch[1] }}
         env:
           GOOS: ${{ matrix.osarch[0] }}
           GOARCH: ${{ matrix.osarch[1] }}
         run: |
-          go build -v -o ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./...
+          cd $(go list ./... | grep main) # 寻找包含main包的目录
+          go build -v -o ../bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} .
 
       - name: Test for ${{ matrix.osarch[0] }}/${{ matrix.osarch[1] }}
         env:
