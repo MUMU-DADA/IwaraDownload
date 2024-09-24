@@ -46,7 +46,10 @@ jobs:
           GOOS: ${{ matrix.osarch[0] }}
           GOARCH: ${{ matrix.osarch[1] }}
         run: |
-          go test -v ./...
+          # 先构建测试二进制文件
+          go test -c -o ./bin/app-test-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./...
+          # 运行测试
+          ./bin/app-test-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
 
       - name: Upload Artifacts
         if: always()
