@@ -169,7 +169,7 @@ func rangePage(user *model.User, rangeFunc func(pageNum int, videoData model.Res
 			// 再设置当前页码
 			i = page
 			if Break {
-				break
+				return nil
 			}
 		}
 	}
