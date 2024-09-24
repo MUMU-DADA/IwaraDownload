@@ -7,10 +7,10 @@ import (
 	"IwaraDownload/pkg/config"
 	"IwaraDownload/pkg/date"
 	"IwaraDownload/pkg/files"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -20,6 +20,52 @@ import (
 var (
 	maxPage int = 50 // 最大页数
 )
+
+// saveVideoDatabase 保存视频数据到本地数据库
+func saveVideoDatabase(filePath string, videoData model.Result, fileData []*model.Video) {
+	dataFileName := filePath + string(os.PathSeparator) + consts.VIDEO_DATABASE
+
+	var db model.Data
+	// 检查文件是否存在
+	if files.CheckFileExists(dataFileName) {
+		// 读取文件
+		data, err := files.ReadFile(dataFileName)
+		if err != nil {
+			log.Println("读取数据库文件失败:", err)
+			return
+		}
+		// 解析文件
+		err = json.Unmarshal(data, &db)
+		if err != nil {
+			log.Println("解析数据库文件失败:", err)
+			return
+		}
+		// 添加新数据
+		if db.VideoMap == nil {
+			db.VideoMap = make(map[string]model.VideoData)
+		}
+	} else {
+		db = model.Data{
+			VideoMap: make(map[string]model.VideoData),
+		}
+	}
+
+	db.VideoMap[videoData.ID] = model.VideoData{
+		Video: &videoData,
+		Files: fileData,
+	}
+	// 保存数据库
+	data, err := json.Marshal(db)
+	if err != nil {
+		log.Println("序列化数据库文件失败:", err)
+		return
+	}
+	err = files.WriteFile(dataFileName, data)
+	if err != nil {
+		log.Println("写入数据库文件失败:", err)
+		return
+	}
+}
 
 // skipVideo 依据配置检查是否跳过视频
 func skipVideo(user *model.User, video model.Result) bool {
@@ -89,6 +135,38 @@ func skipVideo(user *model.User, video model.Result) bool {
 
 	// 如果一个指定条件都没有配置,则最后默认放行,如果配置了,则最后默认禁止
 	return hasRules
+}
+
+// rangePage 遍历页码
+func rangePage(user *model.User, rangeFunc func(pageNum int, videoData model.Result) (Break bool, page int, err error)) error {
+	for i := 0; i <= maxPage; i++ {
+		log.Printf("正在获取第%d页视频列表\n", i)
+		// 尝试获取视频列表
+		pageData, err := request.GetVideoData(user, i)
+		if err != nil {
+			// 视频页数据获取的失败是不能容忍的，直接返回错误
+			log.Printf("获取视频列表失败: %s\n", err.Error())
+			return err
+		}
+		log.Println("视频列表获取成功")
+
+		maxPage = pageData.Count / pageData.Limit
+		log.Printf("总计有%d页", maxPage)
+
+		for _, video := range pageData.Results {
+			log.Println("处理视频:", video.Title)
+			Break, page, err := rangeFunc(i, video)
+			if err != nil {
+				return err
+			}
+			// 再设置当前页码
+			i = page
+			if Break {
+				break
+			}
+		}
+	}
+	return nil
 }
 
 // Month 开始月下载任务
@@ -200,7 +278,6 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				log.Printf("(检查昵称)视频已存在: %s 跳过...\n", f)
 				continue
 			}
-
 			log.Println("文件不存在,准备获取视频下载地址")
 
 			videoDownload = true
@@ -212,23 +289,13 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				// 跳过当前视频
 				continue
 			}
-
-			if len(videoUrl) < 1 {
-				log.Printf("获取视频地址为空: %s\n", video.ID)
-				// 跳过当前视频
-				continue
-			}
-
-			// 排序默认下载最清晰的视频
-			sort.Slice(videoUrl, func(i, j int) bool {
-				return model.VideoDefinitionMap[videoUrl[i].Name] > model.VideoDefinitionMap[videoUrl[j].Name]
-			})
 			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
-			// 判断文件是否存在
+			// 保存视频数据到数据库
+			saveVideoDatabase(filePath, video, videoUrl)
+
 			videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
 			videoPath := filePath + string(os.PathSeparator) + videoName
-
 			startDownloadTime := time.Now()
 			log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
 			err = request.Download(user, videoUrl[0].Src.Download, videoPath)
@@ -246,6 +313,64 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 	return nil
 }
 
+// Hot 下载热门视频
+func Hot(user *model.User, pageLimit int) error {
+	filePath := consts.FlagConf.WorkDIr + string(os.PathSeparator) + consts.HOT_DIR
+	err := files.CheckDirOrCreate(filePath)
+	if err != nil {
+		return err
+	}
+	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
+		if pageNum > pageLimit {
+			log.Println("热门视频下载任务完成")
+			return true, pageNum, nil
+		}
+
+		// 检查是否需要跳过当前视频
+		if skipVideo(user, video) {
+			return false, pageNum, nil
+		}
+		// 检查文件是否已经被下载,如果被下载则跳过
+		// 尝试从目标路径中获取可能的文件名
+		log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
+		checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
+		checkDir := filePath + string(os.PathSeparator)
+		f := files.CheckVideoFileExist(checkName, checkDir)
+		if f != "" {
+			log.Printf("视频已存在: %s 跳过...\n", f)
+			return false, pageNum, nil
+		}
+		log.Println("文件不存在,准备获取视频下载地址")
+
+		// 开始下载视频
+		videoUrl, err := request.GetVideoDownloadUrl(user, video)
+		if err != nil {
+			log.Printf("获取视频地址失败: %s\n", err.Error())
+			// 跳过当前视频
+			return false, pageNum, nil
+		}
+		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
+
+		// 保存视频数据到数据库
+		saveVideoDatabase(filePath, video, videoUrl)
+
+		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
+		videoPath := filePath + string(os.PathSeparator) + videoName
+		startDownloadTime := time.Now()
+		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
+		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
+		if err != nil {
+			log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
+			// 跳过当前视频
+			return false, pageNum, nil
+		}
+		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
+
+		return false, pageNum, nil
+	})
+	return rangeErr
+}
+
 func loop() {
 	log.Println("开始循环扫描任务")
 	config.Config.PrintLimit()
@@ -259,7 +384,7 @@ func loop() {
 		year := time.Now().Year()
 		month := time.Now().Month()
 		if err := Month(config.Config, year, int(month), lastScanTime); err != nil {
-			if retryTimes > 3 {
+			if retryTimes > consts.MAX_RETRY_TIMES {
 				log.Println("重试次数过多,程序退出")
 				os.Exit(1)
 			}
@@ -271,6 +396,34 @@ func loop() {
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
 		lastScanTime = time.Now()
+		retryTimes = 0
+
+		if useTime < consts.SCAN_STEP {
+			time.Sleep(consts.SCAN_STEP - useTime)
+		}
+	}
+}
+
+func hot() {
+	log.Println("开始下载热门视频")
+	config.Config.PrintLimit()
+
+	retryTimes := 0
+	for {
+		start := time.Now()
+		log.Println("开始下载热门视频")
+		if err := Hot(config.Config, 1); err != nil {
+			if retryTimes > consts.MAX_RETRY_TIMES {
+				log.Println("重试次数过多,程序退出")
+				os.Exit(1)
+			}
+			log.Println("下载热门视频任务失败", err, "开始重试")
+			retryTimes++
+			continue
+		}
+		log.Println("下载热门视频任务完成")
+		useTime := time.Since(start)
+		log.Println("本次扫描任务耗时:", useTime)
 		retryTimes = 0
 
 		if useTime < consts.SCAN_STEP {
@@ -305,6 +458,9 @@ func main() {
 	if consts.FlagConf.Year != 0 || consts.FlagConf.Month != 0 {
 		log.Println("指定了年份或月份,开始下载指定月份视频")
 		once()
+	} else if consts.FlagConf.Hot {
+		log.Println("指定了热门视频模式,开始下载热门视频")
+		hot()
 	} else {
 		log.Println("未指定年份或月份,进行从当月开始的挂机下载任务")
 		loop()

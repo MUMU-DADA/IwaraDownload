@@ -10,12 +10,17 @@ import (
 )
 
 const (
-	MODEL_NAME      = "IwaraDownload"                             // 模块名
-	DEFAULT_WORKDIR = "." + string(os.PathSeparator) + MODEL_NAME // 默认下载目录
-	LOG_FILE_NAME   = MODEL_NAME + ".log"                         // 日志文件名
-	LOG_PATH        = "." + string(os.PathSeparator) + LOG_FILE_NAME
+	MODEL_NAME             = "IwaraDownload"     // 模块名
+	LOG_FILE_NAME          = MODEL_NAME + ".log" // 日志文件名
+	LOG_PATH               = "." + string(os.PathSeparator) + LOG_FILE_NAME
+	DEFAULT_WORKDIR        = "." + string(os.PathSeparator) + MODEL_NAME // 默认下载目录
+	HOT_DIR                = "hot"                                       // 热门视频下载目录
+	HOT_PAGE_DEFAULT_LIMIT = 30                                          // 热门视频下载页数
 
-	SCAN_STEP = time.Minute * 10 // 多久执行一次扫描任务
+	SCAN_STEP       = time.Minute * 10 // 多久执行一次扫描任务
+	MAX_RETRY_TIMES = 5                // 重试次数
+
+	VIDEO_DATABASE = "video.json" // 视频数据库文件名
 )
 
 var (
@@ -32,7 +37,9 @@ type config struct {
 	Year  int `flag:"year" short:"y" default:"0" usage:"指定年份下载,默认使用当前年份,只要使用了该参数,就只会进行单月份下载任务"`  // 指定年份下载
 	Month int `flag:"month" short:"m" default:"0" usage:"指定月份下载,默认使用当前月份,是要使用了该参数,就只会进行单月份下载任务"` // 指定月份下载
 
-	Subscribed bool `flag:"subscribed" short:"s" default:"false" usage:"是否订阅模式下载"` // 订阅模式下载
+	Subscribed   bool `flag:"subscribed" short:"s" default:"false" usage:"是否订阅模式下载"` // 订阅模式下载
+	Hot          bool `flag:"hot" short:"h" default:"false" usage:"是否进行热门视频模式"`      // 热门视频下载模式
+	HotPageLimit int  `flag:"hotpage" short:"hp" default:"0" usage:"热门视频下载页数"`       // 热门视频下载页数
 }
 
 func init() {
@@ -60,6 +67,7 @@ func init() {
 	if FlagConf.WorkDIr == "" {
 		FlagConf.WorkDIr = DEFAULT_WORKDIR
 	}
+	log.Println("下载目录:", FlagConf.WorkDIr)
 
 	// 检查目录是否存在,不存着则创建
 	if err := checkDirOrCreate(FlagConf.WorkDIr); err != nil {
