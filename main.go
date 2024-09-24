@@ -50,10 +50,16 @@ func saveVideoDatabase(filePath string, videoData model.Result, fileData []*mode
 		}
 	}
 
-	db.VideoMap[videoData.ID] = model.VideoData{
+	addData := model.VideoData{
 		Video: &videoData,
 		Files: fileData,
 	}
+	oldData, ok := db.VideoMap[videoData.ID]
+	if fileData == nil && ok {
+		// 如果没有文件数据,则不更新文件数据
+		addData.Files = oldData.Files
+	}
+
 	// 保存数据库
 	data, err := json.Marshal(db)
 	if err != nil {
@@ -276,6 +282,8 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			f = files.CheckVideoFileExist(checkName, checkDir)
 			if f != "" {
 				log.Printf("(检查昵称)视频已存在: %s 跳过...\n", f)
+				// 保存视频数据到数据库
+				saveVideoDatabase(filePath, video, nil)
 				continue
 			}
 			log.Println("文件不存在,准备获取视频下载地址")
@@ -338,6 +346,8 @@ func Hot(user *model.User, pageLimit int) error {
 		f := files.CheckVideoFileExist(checkName, checkDir)
 		if f != "" {
 			log.Printf("视频已存在: %s 跳过...\n", f)
+			// 保存视频数据到数据库
+			saveVideoDatabase(filePath, video, nil)
 			return false, pageNum, nil
 		}
 		log.Println("文件不存在,准备获取视频下载地址")
