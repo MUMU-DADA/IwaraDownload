@@ -432,34 +432,6 @@ func hot() {
 	}
 }
 
-func hot() {
-	log.Println("开始下载热门视频")
-	config.Config.PrintLimit()
-
-	retryTimes := 0
-	for {
-		start := time.Now()
-		log.Println("开始下载热门视频")
-		if err := Hot(config.Config, 1); err != nil {
-			if retryTimes > consts.MAX_RETRY_TIMES {
-				log.Println("重试次数过多,程序退出")
-				os.Exit(1)
-			}
-			log.Println("下载热门视频任务失败", err, "开始重试")
-			retryTimes++
-			continue
-		}
-		log.Println("下载热门视频任务完成")
-		useTime := time.Since(start)
-		log.Println("本次扫描任务耗时:", useTime)
-		retryTimes = 0
-
-		if useTime < consts.SCAN_STEP {
-			time.Sleep(consts.SCAN_STEP - useTime)
-		}
-	}
-}
-
 func once() {
 	log.Println("开始单次扫描任务")
 	config.Config.PrintLimit()
