@@ -55,7 +55,7 @@ jobs:
           GOOS: ${{ matrix.osarch[0] }}
           GOARCH: ${{ matrix.osarch[1] }}
         run: |
-          GOOS=${{ matrix.osarch[0] }} GOARCH=${{ matrix.osarch[1] }} go build -v -o ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./main.go
+          GOOS=${{ matrix.osarch[0] }} GOARCH=${{ matrix.osarch[1] }} go build -v -gcflags="-l" -trimpath -o ./bin/IwaraDownload-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }} ./main.go
 
       - name: Upload Artifacts
         if: always()
