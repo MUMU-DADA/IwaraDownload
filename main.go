@@ -161,7 +161,6 @@ func rangePage(user *model.User, rangeFunc func(pageNum int, videoData model.Res
 		log.Printf("总计有%d页", maxPage)
 
 		for _, video := range pageData.Results {
-			log.Println("处理视频:", video.Title)
 			Break, page, err := rangeFunc(i, video)
 			if err != nil {
 				return err
@@ -334,7 +333,7 @@ func Hot(user *model.User, pageLimit int) error {
 			log.Println("热门视频下载任务完成")
 			return true, pageNum, nil
 		}
-
+		log.Println("处理视频:", video.Title)
 		// 检查是否需要跳过当前视频
 		if skipVideo(user, video) {
 			return false, pageNum, nil
