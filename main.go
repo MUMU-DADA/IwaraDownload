@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	maxPage int = 50 // 最大页数
+	maxPage int = 50 // 初始最大页数
 )
 
 // saveVideoDatabase 保存视频数据到本地数据库
@@ -190,6 +190,9 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 	// 获取目标月份的最后一天
 	lastDayOfMonth := date.GetLastDayOfMonth(startTime)
 
+	var downloadCount int
+	var fullCount int
+
 	var videoDownload bool
 	for i := 0; i <= maxPage; i++ {
 		log.Printf("正在获取第%d页视频列表\n", i)
@@ -264,6 +267,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			if skipVideo(user, video) {
 				continue
 			}
+			fullCount++
 
 			// 检查文件是否已经被下载,如果被下载则跳过
 			// 尝试从目标路径中获取可能的文件名
@@ -313,11 +317,13 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				continue
 			}
 			log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
+			downloadCount++
 		}
 		request.DelaySwitch = videoDownload
 	}
 
 	log.Println("视频下载任务完成")
+	log.Println("本轮扫描一共需要下载", fullCount, "个视频,本次下载", downloadCount)
 	return nil
 }
 
@@ -328,6 +334,8 @@ func Hot(user *model.User, pageLimit int) error {
 	if err != nil {
 		return err
 	}
+	var downloadCount int
+	var fullCount int
 	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
 		if pageNum > pageLimit {
 			log.Println("热门视频下载任务完成")
@@ -338,6 +346,7 @@ func Hot(user *model.User, pageLimit int) error {
 		if skipVideo(user, video) {
 			return false, pageNum, nil
 		}
+		fullCount++
 		// 检查文件是否已经被下载,如果被下载则跳过
 		// 尝试从目标路径中获取可能的文件名
 		log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
@@ -375,9 +384,12 @@ func Hot(user *model.User, pageLimit int) error {
 			return false, pageNum, nil
 		}
 		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
+		downloadCount++
 
 		return false, pageNum, nil
 	})
+
+	log.Println("本轮扫描一共需要下载", fullCount, "个视频,本次下载", downloadCount)
 	return rangeErr
 }
 
@@ -406,6 +418,7 @@ func loop() {
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
 		lastScanTime = time.Now()
+		log.Println("===============================================================")
 		retryTimes = 0
 
 		if useTime < consts.SCAN_STEP {
@@ -434,6 +447,7 @@ func hot() {
 		log.Println("下载热门视频任务完成")
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
+		log.Println("===============================================================")
 		retryTimes = 0
 
 		if useTime < consts.SCAN_STEP {
