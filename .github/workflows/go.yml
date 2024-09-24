@@ -61,5 +61,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
-          path: ./bin/app-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
+          name: IwaraDownload-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
+          path: ./bin/IwaraDownload-${{ matrix.osarch[0] }}-${{ matrix.osarch[1] }}
