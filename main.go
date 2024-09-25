@@ -78,6 +78,13 @@ func saveVideoDatabase(filePath string, videoData model.Result, fileData []*mode
 func skipVideo(user *model.User, video model.Result) bool {
 	var hasRules bool
 
+	// 检查点赞 (点赞是最顶级的优先度,如果设置了但是视频没有达到,那么不检查tag或者作者直接跳过)
+	if user.LikeLimit > 0 && video.NumLikes < user.LikeLimit {
+		// 如果点赞数超过配置,则跳过当前视频
+		log.Printf("视频点赞数: %d,小于配置: %d,跳过当前视频\n", video.NumLikes, user.LikeLimit)
+		return true
+	}
+
 	// 优先匹配指定的条件不进行不跳过
 	// 1. 指定标签
 	if len(user.Tags) > 0 {
@@ -132,12 +139,6 @@ func skipVideo(user *model.User, video model.Result) bool {
 			log.Printf("视频作者: %s 在禁止列表中,跳过当前视频\n", video.User.Username)
 			return true
 		}
-	}
-	// 3. 检查点赞
-	if user.LikeLimit > 0 && video.NumLikes < user.LikeLimit {
-		// 如果点赞数超过配置,则跳过当前视频
-		log.Printf("视频点赞数: %d,小于配置: %d,跳过当前视频\n", video.NumLikes, user.LikeLimit)
-		return true
 	}
 
 	// 如果一个指定条件都没有配置,则最后默认放行,如果配置了,则最后默认禁止
@@ -252,7 +253,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			}
 
 			if createTime.Before(lastDownloadTime) {
-				// 当前视频创建时间早于上次下载时间，判断为下载任务完成
+				// 当前视频创建时间早于上次开始下载时间，判断为下载任务完成
 				log.Println("视频下载任务完成")
 				return nil
 			}
@@ -419,7 +420,7 @@ func loop() {
 		log.Println("扫描任务完成")
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
-		lastScanTime = time.Now()
+		lastScanTime = start
 		log.Println("===============================================================")
 		retryTimes = 0
 
