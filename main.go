@@ -265,6 +265,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 
 			// 检查是否需要跳过当前视频
 			if skipVideo(user, video) {
+				log.Println("视频不符合下载条件,跳过...")
 				continue
 			}
 			fullCount++
@@ -344,6 +345,7 @@ func Hot(user *model.User, pageLimit int) error {
 		log.Println("处理视频:", video.Title)
 		// 检查是否需要跳过当前视频
 		if skipVideo(user, video) {
+			log.Println("视频不符合下载条件,跳过...")
 			return false, pageNum, nil
 		}
 		fullCount++
