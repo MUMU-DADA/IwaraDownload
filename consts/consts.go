@@ -15,7 +15,7 @@ const (
 	LOG_PATH               = "." + string(os.PathSeparator) + LOG_FILE_NAME
 	DEFAULT_WORKDIR        = "." + string(os.PathSeparator) + MODEL_NAME // 默认下载目录
 	HOT_DIR                = "hot"                                       // 热门视频下载目录
-	HOT_PAGE_DEFAULT_LIMIT = 3                                           // 热门视频下载页数
+	HOT_PAGE_DEFAULT_LIMIT = 1                                           // 热门视频下载页数
 
 	SCAN_STEP       = time.Minute * 10 // 多久执行一次扫描任务
 	MAX_RETRY_TIMES = 5                // 重试次数
