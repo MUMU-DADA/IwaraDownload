@@ -217,6 +217,9 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				// 跳过当前视频
 				continue
 			}
+			// 因为获取到的时间是标准时,但是转换库会将其转换为本地时区,所以需要重新修改回UTC后再次转换为本地时区
+			createTime = time.Date(createTime.Year(), createTime.Month(), createTime.Day(), createTime.Hour(), createTime.Minute(), createTime.Second(), createTime.Nanosecond(), time.UTC)
+			createTime = createTime.Local()
 			log.Println("视频创建时间:", createTime)
 
 			// 跳过不需要下载日期范围的视频
