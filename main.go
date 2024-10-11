@@ -257,6 +257,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 
 			if createTime.Before(lastDownloadTime) {
 				// 当前视频创建时间早于上次开始下载时间，判断为下载任务完成
+				log.Println("视频创建时间", createTime, "早于上次开始下载时间", lastDownloadTime, ",判断为下载任务完成")
 				log.Println("视频下载任务完成")
 				return nil
 			}

@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	apiHost         = "https://api.iwara.tv"                                    // api地址
-	apiLoginUrl     = apiHost + "/user/login"                                   // 登录地址
-	apiTokenUrl     = apiHost + "/user/token"                                   // 获取token地址
-	apiPageUrl      = apiHost + "/videos?rating=all&sort=date&limit=32&page=%d" // 视频列表地址
-	apiVideoMainUrl = apiHost + "/video/%s"                                     // 视频主页地址
+	apiHost         = "https://api.iwara.tv"                          // api地址
+	apiLoginUrl     = apiHost + "/user/login"                         // 登录地址
+	apiTokenUrl     = apiHost + "/user/token"                         // 获取token地址
+	apiPageUrl      = apiHost + "/videos?rating=all&limit=32&page=%d" // 视频列表地址
+	apiVideoMainUrl = apiHost + "/video/%s"                           // 视频主页地址
 )
 
 // 流程为: 登录 -> 获取token -> 获取视频列表 -> 视频主页 -> 获取视频地址 -> 下载视频
@@ -91,6 +91,7 @@ func GetToken(user *model.User) error {
 
 // RefreshAccessToken 刷新token
 func RefreshAccessToken(user *model.User) error {
+	defer user.SetAuthorization(user.AccessToken)
 	if user.CheckAccessToken() {
 		return nil
 	}
@@ -108,7 +109,7 @@ func GetVideoData(user *model.User, page int) (*model.PageDataRoot, error) {
 	url := fmt.Sprintf(apiPageUrl, page)
 	if user.Subscribe {
 		// 获取订阅的视频
-		url = url + "&sort=date&subscribed=true"
+		url = url + "&subscribed=true"
 	} else if user.Hot {
 		// 获取热门视频
 		url = url + "&sort=hot"
