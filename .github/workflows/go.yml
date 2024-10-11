@@ -34,6 +34,7 @@ jobs:
           - ["linux", "amd64"]
           - ["linux", "arm64"]
           - ["windows", "amd64"]
+          - ["windows", "arm64"]
           - ["darwin", "amd64"]
           - ["darwin", "arm64"]
           # 可以根据需要添加更多组合
