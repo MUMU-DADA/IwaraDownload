@@ -493,6 +493,11 @@ func loop() {
 		if useTime < consts.SCAN_STEP {
 			time.Sleep(consts.SCAN_STEP - useTime)
 		}
+
+		// 检测是否开启多模式下载的话每个模式只执行一次循环任务
+		if len(config.Config.MultiMode) > 0 {
+			break
+		}
 	}
 }
 
@@ -596,6 +601,29 @@ func artistLoop() {
 		if useTime < consts.SCAN_STEP {
 			time.Sleep(consts.SCAN_STEP - useTime)
 		}
+
+		// 检测是否开启多模式下载的话每个模式只执行一次循环任务
+		if len(config.Config.MultiMode) > 0 {
+			break
+		}
+	}
+}
+
+func MultiMode() {
+	for {
+		for _, v := range config.Config.MultiMode {
+			switch v {
+			case model.SubscribeMode:
+				loop()
+			case model.HotMode:
+				hot()
+			case model.ArtistMode:
+				artistLoop()
+			default:
+				log.Println("不支持的模式", v)
+				continue
+			}
+		}
 	}
 }
 
@@ -604,6 +632,12 @@ func main() {
 	if consts.FlagConf.Year != 0 || consts.FlagConf.Month != 0 {
 		log.Println("指定了年份或月份,开始下载指定月份视频")
 		once()
+	}
+
+	if len(config.Config.MultiMode) > 0 {
+		log.Println("多模式:", config.Config.MultiMode)
+		MultiMode()
+		return
 	}
 
 	switch config.Config.Mode {

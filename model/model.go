@@ -36,12 +36,13 @@ func (d DownloadMode) Name() string {
 type User struct {
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 登录信息 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	Username     string       `json:"username"`     // 用户名
-	Password     string       `json:"password"`     // 密码
-	LoginToken   string       `json:"loginToken"`   // 登录token
-	AccessToken  string       `json:"accessToken"`  // 访问token
-	Mode         DownloadMode `json:"mode"`         // 下载模式
-	HotPageLimit int          `json:"hotPageLimit"` // 热门页下载限制
+	Username     string         `json:"username"`     // 用户名
+	Password     string         `json:"password"`     // 密码
+	LoginToken   string         `json:"loginToken"`   // 登录token
+	AccessToken  string         `json:"accessToken"`  // 访问token
+	HotPageLimit int            `json:"hotPageLimit"` // 热门页下载限制
+	Mode         DownloadMode   `json:"mode"`         // 下载模式
+	MultiMode    []DownloadMode `json:"multiMode"`    // 多模式下载
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 登录信息 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 下载条件 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
