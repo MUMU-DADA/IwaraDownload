@@ -16,6 +16,7 @@ const (
 	DEFAULT_WORKDIR        = "." + string(os.PathSeparator) + MODEL_NAME // 默认下载目录
 	HOT_DIR                = "hot"                                       // 热门视频下载目录
 	HOT_PAGE_DEFAULT_LIMIT = 1                                           // 热门视频下载页数
+	ARTIST_DIR             = "artist"                                    // 艺术家视频下载目录
 
 	SCAN_STEP       = time.Minute * 10 // 多久执行一次扫描任务
 	MAX_RETRY_TIMES = 5                // 重试次数
@@ -37,9 +38,9 @@ type config struct {
 	Year  int `flag:"year" short:"y" default:"0" usage:"指定年份下载,默认使用当前年份,只要使用了该参数,就只会进行单月份下载任务"`  // 指定年份下载
 	Month int `flag:"month" short:"m" default:"0" usage:"指定月份下载,默认使用当前月份,是要使用了该参数,就只会进行单月份下载任务"` // 指定月份下载
 
-	Subscribed   bool `flag:"subscribed" short:"s" default:"false" usage:"是否订阅模式下载"` // 订阅模式下载
-	Hot          bool `flag:"hot" short:"h" default:"false" usage:"是否进行热门视频模式"`      // 热门视频下载模式
-	HotPageLimit int  `flag:"hotpage" short:"hp" default:"0" usage:"热门视频下载页数"`       // 热门视频下载页数
+	Mode         int    `flag:"mode" default:"0" usage:"下载模式,0为默认模式,1为订阅模式,2为热门视频模式,3为艺术家模式"`
+	HotPageLimit int    `flag:"hotpage" short:"hp" default:"0" usage:"热门视频下载页数"` // 热门视频下载页数
+	Artist       string `flag:"artist" short:"ar" default:"" usage:"指定艺术家"`
 }
 
 func init() {

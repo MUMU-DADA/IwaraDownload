@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	apiHost         = "https://api.iwara.tv"                          // api地址
-	apiLoginUrl     = apiHost + "/user/login"                         // 登录地址
-	apiTokenUrl     = apiHost + "/user/token"                         // 获取token地址
-	apiPageUrl      = apiHost + "/videos?rating=all&limit=32&page=%d" // 视频列表地址
-	apiVideoMainUrl = apiHost + "/video/%s"                           // 视频主页地址
+	apiHost             = "https://api.iwara.tv"                          // api地址
+	apiLoginUrl         = apiHost + "/user/login"                         // 登录地址
+	apiTokenUrl         = apiHost + "/user/token"                         // 获取token地址
+	apiPageUrl          = apiHost + "/videos?rating=all&limit=32&page=%d" // 视频列表地址
+	apiVideoMainUrl     = apiHost + "/video/%s"                           // 视频主页地址
+	apiArtistProfileUrl = apiHost + "/profile/%s"                         // 用户主页地址
 )
 
 // 流程为: 登录 -> 获取token -> 获取视频列表 -> 视频主页 -> 获取视频地址 -> 下载视频
@@ -107,23 +108,27 @@ func GetVideoData(user *model.User, page int) (*model.PageDataRoot, error) {
 	}
 
 	url := fmt.Sprintf(apiPageUrl, page)
-	if user.Subscribe {
-		// 获取订阅的视频
-		url = url + "&subscribed=true"
-	} else if user.Hot {
-		// 获取热门视频
-		url = url + "&sort=hot"
-	} else {
+	switch user.Mode {
+	case model.AllMode:
 		// 默认全部下载模式,依据时间排序
 		url = url + "&sort=date"
+	case model.SubscribeMode:
+		// 获取订阅的视频
+		url = url + "&sort=date&subscribed=true"
+	case model.HotMode:
+		// 获取热门视频
+		url = url + "&sort=hot"
+	case model.ArtistMode:
+		// 获取指定用户的视频
+		url = url + "&sort=date&user=" + user.ArtistUIDMap[user.NowArtist]
+	default:
+		log.Fatalln("不支持的模式", user.Mode)
 	}
+
 	body, err := getWeb(url, GET, user, "", nil)
 	if err != nil {
 		return nil, err
 	}
-
-	// a := string(body)
-	// log.Println(a)
 
 	var rsp model.PageDataRoot
 	err = json.Unmarshal(body, &rsp)
@@ -146,9 +151,6 @@ func GetVideoDownloadUrl(user *model.User, videoData model.Result) ([]*model.Vid
 		return nil, err
 	}
 
-	// a := string(body)
-	// log.Println(a)
-
 	var rsp model.Result
 	err = json.Unmarshal(body, &rsp)
 	if err != nil {
@@ -159,12 +161,6 @@ func GetVideoDownloadUrl(user *model.User, videoData model.Result) ([]*model.Vid
 	if fileUrl == "" {
 		return nil, model.ErrNoVideoUrl
 	}
-
-	// originName := "Iwara - " + videoData.Title + " [" + videoData.ID + "].mp4"
-	// lastUrl := fileUrl + "&download=" + url.QueryEscape(originName)
-
-	// // 先尝试发一个options
-	// getWeb(fileUrl, OPTIONS, user, "")
 
 	xVersion, err := utils.GenXVersion(fileUrl)
 	if err != nil {
@@ -201,4 +197,22 @@ func Download(user *model.User, videoUrl string, filePath string) error {
 	downloadUrl := "https:" + videoUrl
 	err := saveWebRspToFile(filePath, downloadUrl, GET, user, "")
 	return err
+}
+
+// GetArtistInfo 获取用户信息
+func GetArtistInfo(user *model.User, artistName string) (*model.Artist, error) {
+	err := RefreshAccessToken(user)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf(apiArtistProfileUrl, artistName)
+	body, err := getWeb(url, GET, user, "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var rsp model.ArtistProfile
+	err = json.Unmarshal(body, &rsp)
+	return &rsp.User, err
 }

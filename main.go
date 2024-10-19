@@ -235,7 +235,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				// 将差值转换为天数
 				days := int(duration.Hours() / 24)
 
-				if user.Subscribe {
+				if user.Mode == model.SubscribeMode {
 					// 订阅下载模式的分页视频数量明显较少,为了放置跳转过头,使用较小的跳页 (每超过3天/1页)
 					if days > 3 {
 						jumpPage := (days / 3) * 1
@@ -400,6 +400,68 @@ func Hot(user *model.User, pageLimit int) error {
 	return rangeErr
 }
 
+func Artist(user *model.User) error {
+	filePath := consts.FlagConf.WorkDIr + string(os.PathSeparator) + consts.ARTIST_DIR + string(os.PathSeparator) + user.NowArtist
+	err := files.CheckDirOrCreate(filePath)
+	if err != nil {
+		return err
+	}
+	var downloadCount int
+	var fullCount int
+	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
+		log.Println("处理视频:", video.Title)
+		// 检查是否需要跳过当前视频
+		if skipVideo(user, video) {
+			log.Println("视频不符合下载条件,跳过...")
+			return false, pageNum, nil
+		}
+		fullCount++
+		// 检查文件是否已经被下载,如果被下载则跳过
+		// 尝试从目标路径中获取可能的文件名
+		log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
+		checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
+		checkDir := filePath + string(os.PathSeparator)
+		f := files.CheckVideoFileExist(checkName, checkDir)
+		if f != "" {
+			log.Printf("视频已存在: %s 跳过...\n", f)
+			// 保存视频数据到数据库
+			saveVideoDatabase(filePath, video, nil)
+			return false, pageNum, nil
+		}
+		log.Println("文件不存在,准备获取视频下载地址")
+
+		// 开始下载视频
+		videoUrl, err := request.GetVideoDownloadUrl(user, video)
+		if err != nil {
+			log.Printf("获取视频地址失败: %s\n", err.Error())
+			// 跳过当前视频
+			return false, pageNum, nil
+		}
+		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
+
+		// 保存视频数据到数据库
+		saveVideoDatabase(filePath, video, videoUrl)
+
+		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
+		videoPath := filePath + string(os.PathSeparator) + videoName
+		startDownloadTime := time.Now()
+		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
+		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
+		if err != nil {
+			log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
+			// 跳过当前视频
+			return false, pageNum, nil
+		}
+		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
+		downloadCount++
+
+		return false, pageNum, nil
+	})
+
+	log.Println("本轮扫描一共需要下载", fullCount, "个视频,本次下载", downloadCount)
+	return rangeErr
+}
+
 func loop() {
 	log.Println("开始循环扫描任务")
 	config.Config.PrintLimit()
@@ -484,16 +546,80 @@ func once() {
 	log.Println("本次扫描任务耗时:", useTime)
 }
 
+func artistLoop() {
+	log.Println("开始循环扫描任务")
+	config.Config.PrintLimit()
+
+	// 获取用户的ID信息
+	var artistUidMap = make(map[string]string)
+	for _, v := range config.Config.Artists {
+		info, err := request.GetArtistInfo(config.Config, v)
+		if err != nil {
+			log.Println("获取用户信息失败:", err)
+			continue
+		}
+		artistUidMap[v] = info.ID
+	}
+	config.Config.Artists = []string{}
+	for k, v := range artistUidMap {
+		log.Println("获取用户信息成功: 用户:", k, "ID:", v)
+		config.Config.Artists = append(config.Config.Artists, k)
+	}
+	config.Config.ArtistUIDMap = artistUidMap
+	log.Println("获取用户ID信息完成")
+
+	// 开始循环下载作者的任务
+	retryTimes := 0
+	for {
+		start := time.Now()
+		log.Println("开始下载指定作者视频")
+		for _, v := range config.Config.Artists {
+			config.Config.NowArtist = v
+			log.Println("当前下载作者:", v)
+			config.Config.NowArtist = v
+			if err := Artist(config.Config); err != nil {
+				if retryTimes > consts.MAX_RETRY_TIMES {
+					log.Println("重试次数过多,程序退出")
+					os.Exit(1)
+				}
+				log.Println("下载指定作者视频任务失败", err, "开始重试")
+				retryTimes++
+				continue
+			}
+			log.Println("下载指定作者视频任务完成")
+		}
+		useTime := time.Since(start)
+		log.Println("本次扫描任务耗时:", useTime)
+		log.Println("===============================================================")
+		retryTimes = 0
+
+		if useTime < consts.SCAN_STEP {
+			time.Sleep(consts.SCAN_STEP - useTime)
+		}
+	}
+}
+
 // 流程为: 获取cookie -> 登录 -> 获取token -> 获取视频列表 -> 视频主页 -> 获取视频地址 -> 下载视频
 func main() {
 	if consts.FlagConf.Year != 0 || consts.FlagConf.Month != 0 {
 		log.Println("指定了年份或月份,开始下载指定月份视频")
 		once()
-	} else if config.Config.Hot {
-		log.Println("指定了热门视频模式,开始下载热门视频")
-		hot()
-	} else {
+	}
+
+	switch config.Config.Mode {
+	case model.AllMode:
 		log.Println("未指定年份或月份,进行从当月开始的挂机下载任务")
 		loop()
+	case model.SubscribeMode:
+		log.Println("未指定年份或月份,进行从当月开始的挂机下载任务")
+		loop()
+	case model.HotMode:
+		log.Println("指定了热门视频模式,开始下载热门视频")
+		hot()
+	case model.ArtistMode:
+		log.Println("指定了艺术家模式,开始下载指定艺术家的视频")
+		artistLoop()
+	default:
+		log.Fatalln("不支持的模式", config.Config.Mode)
 	}
 }

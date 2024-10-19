@@ -6,21 +6,42 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
+
+type DownloadMode int
+
+const (
+	// AllMode 全部模式
+	AllMode DownloadMode = iota
+	// SubscribeMode 订阅模式
+	SubscribeMode
+	// HotMode 热门模式
+	HotMode
+	// ArtistMode 下载指定用户模式
+	ArtistMode
+)
+
+func (d DownloadMode) String() string {
+	return strconv.Itoa(int(d))
+}
+
+func (d DownloadMode) Name() string {
+	return [...]string{"全部模式", "订阅模式", "热门模式", "指定用户模式"}[d]
+}
 
 // User 用户信息
 type User struct {
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 登录信息 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	Username     string `json:"username"`     // 用户名
-	Password     string `json:"password"`     // 密码
-	LoginToken   string `json:"loginToken"`   // 登录token
-	AccessToken  string `json:"accessToken"`  // 访问token
-	Subscribe    bool   `json:"subscribe"`    // 订阅下载模式
-	Hot          bool   `json:"hot"`          // 热门下载模式
-	HotPageLimit int    `json:"hotPageLimit"` // 热门页下载限制
+	Username     string       `json:"username"`     // 用户名
+	Password     string       `json:"password"`     // 密码
+	LoginToken   string       `json:"loginToken"`   // 登录token
+	AccessToken  string       `json:"accessToken"`  // 访问token
+	Mode         DownloadMode `json:"mode"`         // 下载模式
+	HotPageLimit int          `json:"hotPageLimit"` // 热门页下载限制
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 登录信息 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 下载条件 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
@@ -33,19 +54,16 @@ type User struct {
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 下载条件 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 临时数据 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	Cookies       []*http.Cookie `json:"-"` // cookie
-	authorization string         // 当前使用的jwt
+	Cookies       []*http.Cookie    `json:"-"` // cookie
+	authorization string            // 当前使用的jwt
+	ArtistUIDMap  map[string]string `json:"-"` // 用户uid
+	NowArtist     string            `json:"-"` // 当前下载用户 (用户下载模式使用)
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 临时数据 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 }
 
 // PrintLimit 打印下载条件
 func (u *User) PrintLimit() {
-	log.Println("当前下载模式:")
-	if u.Subscribe {
-		log.Println("订阅模式")
-	} else {
-		log.Println("全部模式")
-	}
+	log.Println("当前下载模式:", u.Mode.Name())
 
 	log.Println("当前下载条件:")
 	var hasRules bool

@@ -48,6 +48,11 @@ type Tag struct {
 	Sensitive bool   `json:"sensitive"`
 }
 
+// ArtistProfile 结构体表示用户的个人资料
+type ArtistProfile struct {
+	User Artist `json:"user"`
+}
+
 // Result 结构体表示单个结果条目
 type Result struct {
 	ID              string      `json:"id"`
