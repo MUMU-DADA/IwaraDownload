@@ -675,6 +675,7 @@ func artistLoop() {
 func multiMode() {
 	for {
 		for _, v := range config.Config.MultiMode {
+			config.Config.Mode = v
 			switch v {
 			case model.SubscribeMode:
 				loop()
