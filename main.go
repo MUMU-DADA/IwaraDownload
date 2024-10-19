@@ -185,6 +185,14 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 	if err != nil {
 		return err
 	}
+	savePath := filePath
+	if !consts.RUN_IN_WINDOWS {
+		savePath = consts.UNIX_SAVE_PATH
+	}
+	err = files.CheckDirOrCreate(savePath)
+	if err != nil {
+		return err
+	}
 
 	// 获取目标月份的第一天
 	startTime := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
@@ -279,21 +287,33 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			// 尝试从目标路径中获取可能的文件名
 			log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
 			checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
-			checkDir := filePath + string(os.PathSeparator)
+			checkDir := savePath + string(os.PathSeparator)
 			f := files.CheckVideoFileExist(checkName, checkDir)
 			if f != "" {
 				log.Printf("视频已存在: %s 跳过...\n", f)
+				// 保存视频数据到数据库
+				saveVideoDatabase(savePath, video, nil)
+				// 尝试软链接
+				if !consts.RUN_IN_WINDOWS {
+					videoPath := savePath + string(os.PathSeparator) + f
+					files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+f)
+				}
 				continue
 			}
 			// 检查时会额外检查昵称(可更改的用户名),兼容旧版本下载数据(因为旧版本下载数据使用的是文件名是昵称,为了防止重复下载,特意添加的屎山容错)
 			log.Printf("(检查昵称)正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Name, video.Title)
 			checkName = files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Name, video.Title))
-			checkDir = filePath + string(os.PathSeparator)
+			checkDir = savePath + string(os.PathSeparator)
 			f = files.CheckVideoFileExist(checkName, checkDir)
 			if f != "" {
 				log.Printf("(检查昵称)视频已存在: %s 跳过...\n", f)
 				// 保存视频数据到数据库
-				saveVideoDatabase(filePath, video, nil)
+				saveVideoDatabase(savePath, video, nil)
+				// 尝试软链接
+				if !consts.RUN_IN_WINDOWS {
+					videoPath := savePath + string(os.PathSeparator) + f
+					files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+f)
+				}
 				continue
 			}
 			log.Println("文件不存在,准备获取视频下载地址")
@@ -310,10 +330,10 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
 			// 保存视频数据到数据库
-			saveVideoDatabase(filePath, video, videoUrl)
+			saveVideoDatabase(savePath, video, videoUrl)
 
 			videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-			videoPath := filePath + string(os.PathSeparator) + videoName
+			videoPath := savePath + string(os.PathSeparator) + videoName
 			startDownloadTime := time.Now()
 			log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
 			err = request.Download(user, videoUrl[0].Src.Download, videoPath)
@@ -324,6 +344,11 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 			}
 			log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
 			downloadCount++
+
+			// 尝试软链接
+			if !consts.RUN_IN_WINDOWS {
+				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+			}
 		}
 		request.DelaySwitch = videoDownload
 	}
@@ -340,6 +365,15 @@ func Hot(user *model.User, pageLimit int) error {
 	if err != nil {
 		return err
 	}
+	savePath := filePath
+	if !consts.RUN_IN_WINDOWS {
+		savePath = consts.UNIX_SAVE_PATH
+	}
+	err = files.CheckDirOrCreate(savePath)
+	if err != nil {
+		return err
+	}
+
 	var downloadCount int
 	var fullCount int
 	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
@@ -358,12 +392,17 @@ func Hot(user *model.User, pageLimit int) error {
 		// 尝试从目标路径中获取可能的文件名
 		log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
 		checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
-		checkDir := filePath + string(os.PathSeparator)
+		checkDir := savePath + string(os.PathSeparator)
 		f := files.CheckVideoFileExist(checkName, checkDir)
 		if f != "" {
 			log.Printf("视频已存在: %s 跳过...\n", f)
 			// 保存视频数据到数据库
-			saveVideoDatabase(filePath, video, nil)
+			saveVideoDatabase(savePath, video, nil)
+			// 尝试软链接
+			if !consts.RUN_IN_WINDOWS {
+				videoPath := savePath + string(os.PathSeparator) + f
+				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+f)
+			}
 			return false, pageNum, nil
 		}
 		log.Println("文件不存在,准备获取视频下载地址")
@@ -378,10 +417,10 @@ func Hot(user *model.User, pageLimit int) error {
 		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
 		// 保存视频数据到数据库
-		saveVideoDatabase(filePath, video, videoUrl)
+		saveVideoDatabase(savePath, video, videoUrl)
 
 		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-		videoPath := filePath + string(os.PathSeparator) + videoName
+		videoPath := savePath + string(os.PathSeparator) + videoName
 		startDownloadTime := time.Now()
 		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
 		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
@@ -392,6 +431,11 @@ func Hot(user *model.User, pageLimit int) error {
 		}
 		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
 		downloadCount++
+
+		// 尝试软链接
+		if !consts.RUN_IN_WINDOWS {
+			files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+		}
 
 		return false, pageNum, nil
 	})
@@ -406,6 +450,15 @@ func Artist(user *model.User) error {
 	if err != nil {
 		return err
 	}
+	savePath := filePath
+	if !consts.RUN_IN_WINDOWS {
+		savePath = consts.UNIX_SAVE_PATH
+	}
+	err = files.CheckDirOrCreate(savePath)
+	if err != nil {
+		return err
+	}
+
 	var downloadCount int
 	var fullCount int
 	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
@@ -420,12 +473,17 @@ func Artist(user *model.User) error {
 		// 尝试从目标路径中获取可能的文件名
 		log.Printf("正在检查文件是否已下载, 作者: %s, 名称: %s", video.User.Username, video.Title)
 		checkName := files.SanitizeFileName(fmt.Sprintf("[%s] %s", video.User.Username, video.Title))
-		checkDir := filePath + string(os.PathSeparator)
+		checkDir := savePath + string(os.PathSeparator)
 		f := files.CheckVideoFileExist(checkName, checkDir)
 		if f != "" {
 			log.Printf("视频已存在: %s 跳过...\n", f)
 			// 保存视频数据到数据库
-			saveVideoDatabase(filePath, video, nil)
+			saveVideoDatabase(savePath, video, nil)
+			// 尝试软链接
+			if !consts.RUN_IN_WINDOWS {
+				videoPath := savePath + string(os.PathSeparator) + f
+				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+f)
+			}
 			return false, pageNum, nil
 		}
 		log.Println("文件不存在,准备获取视频下载地址")
@@ -440,10 +498,10 @@ func Artist(user *model.User) error {
 		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
 		// 保存视频数据到数据库
-		saveVideoDatabase(filePath, video, videoUrl)
+		saveVideoDatabase(savePath, video, videoUrl)
 
 		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-		videoPath := filePath + string(os.PathSeparator) + videoName
+		videoPath := savePath + string(os.PathSeparator) + videoName
 		startDownloadTime := time.Now()
 		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
 		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
@@ -454,6 +512,11 @@ func Artist(user *model.User) error {
 		}
 		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
 		downloadCount++
+
+		// 尝试软链接
+		if !consts.RUN_IN_WINDOWS {
+			files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+		}
 
 		return false, pageNum, nil
 	})
@@ -557,7 +620,7 @@ func artistLoop() {
 
 	// 获取用户的ID信息
 	var artistUidMap = make(map[string]string)
-	for _, v := range config.Config.Artists {
+	for _, v := range config.Config.DownloadArtists {
 		info, err := request.GetArtistInfo(config.Config, v)
 		if err != nil {
 			log.Println("获取用户信息失败:", err)
@@ -565,10 +628,10 @@ func artistLoop() {
 		}
 		artistUidMap[v] = info.ID
 	}
-	config.Config.Artists = []string{}
+	config.Config.DownloadArtists = []string{}
 	for k, v := range artistUidMap {
 		log.Println("获取用户信息成功: 用户:", k, "ID:", v)
-		config.Config.Artists = append(config.Config.Artists, k)
+		config.Config.DownloadArtists = append(config.Config.DownloadArtists, k)
 	}
 	config.Config.ArtistUIDMap = artistUidMap
 	log.Println("获取用户ID信息完成")
@@ -578,7 +641,7 @@ func artistLoop() {
 	for {
 		start := time.Now()
 		log.Println("开始下载指定作者视频")
-		for _, v := range config.Config.Artists {
+		for _, v := range config.Config.DownloadArtists {
 			config.Config.NowArtist = v
 			log.Println("当前下载作者:", v)
 			config.Config.NowArtist = v
@@ -609,7 +672,7 @@ func artistLoop() {
 	}
 }
 
-func MultiMode() {
+func multiMode() {
 	for {
 		for _, v := range config.Config.MultiMode {
 			switch v {
@@ -636,7 +699,7 @@ func main() {
 
 	if len(config.Config.MultiMode) > 0 {
 		log.Println("多模式:", config.Config.MultiMode)
-		MultiMode()
+		multiMode()
 		return
 	}
 

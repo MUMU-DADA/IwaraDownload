@@ -46,8 +46,10 @@ type User struct {
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 登录信息 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 下载条件 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	Tags    []string `json:"tags"`    // 下载指定标签
-	Artists []string `json:"artists"` // 下载指定用户的内容
+	Tags    []string `json:"tags"`    // (条件)下载指定标签
+	Artists []string `json:"artists"` // (条件)下载指定用户的内容
+
+	DownloadArtists []string `json:"downloadArtists"` // 下载指定用户的内容
 
 	BanArtists []string `json:"banArtists"` // 禁止下载指定用户的内容
 	BanTags    []string `json:"banTags"`    // 跳过标签

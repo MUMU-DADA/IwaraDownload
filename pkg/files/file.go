@@ -1,8 +1,12 @@
 package files
 
 import (
+	"IwaraDownload/consts"
 	"IwaraDownload/model"
+	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -87,4 +91,41 @@ func CheckVideoFileExist(baseName string, dirPath string) string {
 		}
 	}
 	return ""
+}
+
+// SetFileHardLink 设置文件硬链接
+func SetFileHardLink(originPath, targetPath string) error {
+	// 检查当前文件系统是否为windows
+	if consts.RUN_IN_WINDOWS {
+		return fmt.Errorf("not support windows")
+	}
+	// 检查文件是否存在
+	if CheckFileExists(originPath) {
+		// 删除已有目标链接文件
+		_ = os.Remove(targetPath)
+	}
+
+	// 提取目标文件目录
+	targetFilePath := filepath.Dir(targetPath)
+	err := CheckDirOrCreate(targetFilePath)
+	if err != nil {
+		return err
+	}
+
+	// 创建硬链接
+	err = os.Link(originPath, targetPath)
+	if err != nil {
+		return fmt.Errorf("error creating hard link: %v", err)
+	}
+	return nil
+}
+
+// TryFileLink 尝试使用硬链接 原地址, 目标地址
+func TryFileLink(savePath, filePath string) {
+	if !consts.RUN_IN_WINDOWS {
+		err := SetFileHardLink(savePath, filePath)
+		if err != nil {
+			log.Println("创建硬链接失败:", err)
+		}
+	}
 }

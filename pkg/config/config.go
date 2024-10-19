@@ -69,13 +69,13 @@ func init() {
 
 		// 优先使用命令行参数
 		if consts.FlagConf.Artist != "" {
-			c.Artists = []string{consts.FlagConf.Artist}
+			c.DownloadArtists = []string{consts.FlagConf.Artist}
 		}
 
 		// 其次使用配置的参数
 		// 配置文件已经预先载入,无需重复写入
 
-		if len(c.Artists) == 0 {
+		if len(c.DownloadArtists) == 0 {
 			log.Fatalln("未设置艺术家, 请在配置中设置艺术家")
 		}
 	}

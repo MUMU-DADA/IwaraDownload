@@ -22,6 +22,9 @@ const (
 	MAX_RETRY_TIMES = 5                // 重试次数
 
 	VIDEO_DATABASE = "video.json" // 视频数据库文件名
+
+	UNIX_SAVE_PATH      = DEFAULT_WORKDIR + string(os.PathSeparator) + "downloads" // UNIX模式文件系统视频保存路径
+	RUN_IN_WINDOWS bool = os.PathSeparator == '\\'                                 // 是否为windows系统
 )
 
 var (
