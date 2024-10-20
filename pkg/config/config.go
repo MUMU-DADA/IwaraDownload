@@ -4,6 +4,7 @@ import (
 	"IwaraDownload/consts"
 	"IwaraDownload/model"
 	"IwaraDownload/pkg/files"
+	"bytes"
 	"encoding/json"
 	"log"
 	"os"
@@ -23,7 +24,14 @@ func SaveConfig(c *model.User) error {
 	if err != nil {
 		return err
 	}
-	return files.WriteFile(configPath, data)
+
+	// 美化配置的 JSON 再保存
+	var indentedJson bytes.Buffer
+	if err = json.Indent(&indentedJson, data, "", "  "); err != nil {
+		log.Fatalf("JSON 美化失败: %v", err)
+	}
+
+	return files.WriteFile(configPath, indentedJson.Bytes())
 }
 
 func init() {

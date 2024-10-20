@@ -646,7 +646,7 @@ func artistLoop() {
 		config.Config.DownloadArtists = append(config.Config.DownloadArtists, k)
 	}
 	config.Config.ArtistUIDMap = artistUidMap
-	log.Println("获取用户ID信息完成")
+	log.Println("获取用户ID信息完成", "下载用户", config.Config.DownloadArtists)
 
 	// 开始循环下载作者的任务
 	retryTimes := 0
@@ -666,7 +666,7 @@ func artistLoop() {
 				retryTimes++
 				continue
 			}
-			log.Println("下载指定作者视频任务完成")
+			log.Println("下载指定作者", config.Config.NowArtist, "视频任务完成")
 		}
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
