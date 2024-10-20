@@ -525,11 +525,17 @@ func Artist(user *model.User) error {
 	return rangeErr
 }
 
+var loopLastScanTimeMap = map[model.DownloadMode]time.Time{} // 上次扫描时间
+
 func loop() {
 	log.Println("开始循环扫描任务")
 	config.Config.PrintLimit()
 
-	lastScanTime := time.Time{}
+	loopLastScanTime := loopLastScanTimeMap[config.Config.Mode]
+	if loopLastScanTime.IsZero() {
+		loopLastScanTime = time.Now()
+	}
+
 	retryTimes := 0
 	for {
 		start := time.Now()
@@ -537,7 +543,7 @@ func loop() {
 		// 获取当前年月
 		year := time.Now().Year()
 		month := time.Now().Month()
-		if err := Month(config.Config, year, int(month), lastScanTime); err != nil {
+		if err := Month(config.Config, year, int(month), loopLastScanTime); err != nil {
 			if retryTimes > consts.MAX_RETRY_TIMES {
 				log.Println("重试次数过多,程序退出")
 				os.Exit(1)
@@ -549,7 +555,7 @@ func loop() {
 		log.Println("扫描任务完成")
 		useTime := time.Since(start)
 		log.Println("本次扫描任务耗时:", useTime)
-		lastScanTime = start
+		loopLastScanTime = start
 		log.Println("===============================================================")
 		retryTimes = 0
 
@@ -559,6 +565,7 @@ func loop() {
 
 		// 检测是否开启多模式下载的话每个模式只执行一次循环任务
 		if len(config.Config.MultiMode) > 0 {
+			loopLastScanTimeMap[config.Config.Mode] = loopLastScanTime
 			break
 		}
 	}
@@ -589,6 +596,11 @@ func hot() {
 
 		if useTime < consts.SCAN_STEP {
 			time.Sleep(consts.SCAN_STEP - useTime)
+		}
+
+		// 检测是否开启多模式下载的话每个模式只执行一次循环任务
+		if len(config.Config.MultiMode) > 0 {
+			break
 		}
 	}
 }
