@@ -639,10 +639,10 @@ func artistLoop() {
 			continue
 		}
 		artistUidMap[v] = info.ID
+		log.Println("获取用户信息成功: 用户:", v, "ID:", info.ID)
 	}
 	config.Config.DownloadArtists = []string{}
-	for k, v := range artistUidMap {
-		log.Println("获取用户信息成功: 用户:", k, "ID:", v)
+	for k, _ := range artistUidMap {
 		config.Config.DownloadArtists = append(config.Config.DownloadArtists, k)
 	}
 	config.Config.ArtistUIDMap = artistUidMap
