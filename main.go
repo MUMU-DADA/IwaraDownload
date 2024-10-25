@@ -533,7 +533,7 @@ func loop() {
 
 	loopLastScanTime := loopLastScanTimeMap[config.Config.Mode]
 	if loopLastScanTime.IsZero() {
-		loopLastScanTime = time.Now()
+		loopLastScanTime = time.Time{}
 	}
 
 	retryTimes := 0
