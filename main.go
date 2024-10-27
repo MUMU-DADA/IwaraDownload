@@ -377,7 +377,7 @@ func Hot(user *model.User, pageLimit int) error {
 	var downloadCount int
 	var fullCount int
 	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
-		if pageNum > pageLimit {
+		if pageNum >= pageLimit {
 			log.Println("热门视频下载任务完成")
 			return true, pageNum, nil
 		}
@@ -598,7 +598,7 @@ func hot() {
 	for {
 		start := time.Now()
 		log.Println("开始下载热门视频")
-		if err := Hot(config.Config, 1); err != nil {
+		if err := Hot(config.Config, config.Config.HotPageLimit); err != nil {
 			if retryTimes > consts.MAX_RETRY_TIMES {
 				log.Println("重试次数过多,程序退出")
 				os.Exit(1)
