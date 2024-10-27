@@ -93,6 +93,10 @@ func CheckVideoFileExist(baseName string, dirPath string) string {
 	return ""
 }
 
+func Delete(filePath string) error {
+	return os.Remove(filePath)
+}
+
 // SetFileHardLink 设置文件硬链接
 func SetFileHardLink(originPath, targetPath string) error {
 	// 检查当前文件系统是否为windows
@@ -102,7 +106,7 @@ func SetFileHardLink(originPath, targetPath string) error {
 	// 检查文件是否存在
 	if CheckFileExists(originPath) {
 		// 删除已有目标链接文件
-		_ = os.Remove(targetPath)
+		_ = Delete(targetPath)
 	}
 
 	// 提取目标文件目录

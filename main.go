@@ -444,7 +444,7 @@ func Hot(user *model.User, pageLimit int) error {
 	return rangeErr
 }
 
-func Artist(user *model.User) error {
+func Artist(user *model.User, lastDownloadTime time.Time) error {
 	filePath := consts.FlagConf.WorkDIr + string(os.PathSeparator) + consts.ARTIST_DIR + string(os.PathSeparator) + user.NowArtist
 	err := files.CheckDirOrCreate(filePath)
 	if err != nil {
@@ -463,6 +463,25 @@ func Artist(user *model.User) error {
 	var fullCount int
 	rangeErr := rangePage(user, func(pageNum int, video model.Result) (Break bool, page int, err error) {
 		log.Println("处理视频:", video.Title)
+
+		createTime, err := dateparse.ParseLocal(video.CreatedAt)
+		if err != nil {
+			log.Printf("解析时间失败: %s\n", err.Error())
+			// 跳过当前视频
+			return false, pageNum, nil
+		}
+		// 因为获取到的时间是标准时,但是转换库会将其转换为本地时区,所以需要重新修改回UTC后再次转换为本地时区
+		createTime = time.Date(createTime.Year(), createTime.Month(), createTime.Day(), createTime.Hour(), createTime.Minute(), createTime.Second(), createTime.Nanosecond(), time.UTC)
+		createTime = createTime.Local()
+		log.Println("视频创建时间:", createTime)
+		if createTime.Before(lastDownloadTime) {
+			// 当前视频创建时间早于上次开始下载时间，判断为下载任务完成
+			log.Println("视频创建时间", createTime, "早于上次开始下载时间", lastDownloadTime, ",判断为下载任务完成")
+			log.Println("视频下载任务完成")
+			return true, pageNum, nil
+		}
+		log.Println("视频符合时间范围,继续...")
+
 		// 检查是否需要跳过当前视频
 		if skipVideo(user, video) {
 			log.Println("视频不符合下载条件,跳过...")
@@ -626,21 +645,27 @@ func once() {
 	log.Println("本次扫描任务耗时:", useTime)
 }
 
+var artistUidMap = make(map[string]string)
+var artistLastDownloadTimeMap = make(map[string]time.Time)
+
 func artistLoop() {
 	log.Println("开始循环扫描任务")
 	config.Config.PrintLimit()
 
 	// 获取用户的ID信息
-	var artistUidMap = make(map[string]string)
-	for _, v := range config.Config.DownloadArtists {
-		info, err := request.GetArtistInfo(config.Config, v)
-		if err != nil {
-			log.Println("获取用户信息失败:", err)
-			continue
+	if len(artistUidMap) == 0 {
+		// 从配置文件中获取用户信息
+		for _, v := range config.Config.DownloadArtists {
+			info, err := request.GetArtistInfo(config.Config, v)
+			if err != nil {
+				log.Println("获取用户信息失败:", err)
+				continue
+			}
+			artistUidMap[v] = info.ID
+			log.Println("获取用户信息成功: 用户:", v, "ID:", info.ID)
 		}
-		artistUidMap[v] = info.ID
-		log.Println("获取用户信息成功: 用户:", v, "ID:", info.ID)
 	}
+
 	config.Config.DownloadArtists = []string{}
 	for k, _ := range artistUidMap {
 		config.Config.DownloadArtists = append(config.Config.DownloadArtists, k)
@@ -657,7 +682,9 @@ func artistLoop() {
 			config.Config.NowArtist = v
 			log.Println("当前下载作者:", v)
 			config.Config.NowArtist = v
-			if err := Artist(config.Config); err != nil {
+			lastDownloadTime := artistLastDownloadTimeMap[v]
+			artistStartTime := time.Now()
+			if err := Artist(config.Config, lastDownloadTime); err != nil {
 				if retryTimes > consts.MAX_RETRY_TIMES {
 					log.Println("重试次数过多,程序退出")
 					os.Exit(1)
@@ -666,6 +693,7 @@ func artistLoop() {
 				retryTimes++
 				continue
 			}
+			artistLastDownloadTimeMap[v] = artistStartTime
 			log.Println("下载指定作者", config.Config.NowArtist, "视频任务完成")
 		}
 		useTime := time.Since(start)

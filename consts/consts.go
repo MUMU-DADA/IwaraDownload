@@ -18,6 +18,9 @@ const (
 	HOT_PAGE_DEFAULT_LIMIT = 1                                           // 热门视频下载页数
 	ARTIST_DIR             = "artist"                                    // 艺术家视频下载目录
 
+	PAGE_NUM_DEFAULT = 32 // 普通视频下载页数
+	PAGE_NUM_HOT     = 12 // 热门视频单页视频个数
+
 	SCAN_STEP       = time.Minute * 10 // 多久执行一次扫描任务
 	MAX_RETRY_TIMES = 5                // 重试次数
 

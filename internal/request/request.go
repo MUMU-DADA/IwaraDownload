@@ -1,12 +1,14 @@
 package request
 
 import (
+	"IwaraDownload/consts"
 	"IwaraDownload/model"
 	"IwaraDownload/pkg/config"
 	"IwaraDownload/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"sort"
 )
 
@@ -107,25 +109,38 @@ func GetVideoData(user *model.User, page int) (*model.PageDataRoot, error) {
 		return nil, err
 	}
 
-	url := fmt.Sprintf(apiPageUrl, page)
+	baseurl := fmt.Sprintf(apiPageUrl, page)
+	u, err := url.Parse(baseurl)
+	if err != nil {
+		return nil, err
+	}
+	values := u.Query()
+	values.Add("rating", "all")
+
+	pageNum := consts.PAGE_NUM_DEFAULT
 	switch user.Mode {
 	case model.AllMode:
 		// 默认全部下载模式,依据时间排序
-		url = url + "&sort=date"
+		values.Add("sort", "date")
 	case model.SubscribeMode:
 		// 获取订阅的视频
-		url = url + "&sort=date&subscribed=true"
+		values.Add("sort", "date")
+		values.Add("subscribed", "true")
 	case model.HotMode:
 		// 获取热门视频
-		url = url + "&sort=hot"
+		pageNum = consts.PAGE_NUM_HOT
+		values.Add("sort", "hot")
 	case model.ArtistMode:
 		// 获取指定用户的视频
-		url = url + "&sort=date&user=" + user.ArtistUIDMap[user.NowArtist]
+		values.Add("sort", "date")
+		values.Add("user", user.ArtistUIDMap[user.NowArtist])
 	default:
 		log.Fatalln("不支持的模式", user.Mode)
 	}
+	values.Add("limit", fmt.Sprintf("%d", pageNum))
+	u.RawQuery = values.Encode()
 
-	body, err := getWeb(url, GET, user, "", nil)
+	body, err := getWeb(u.String(), GET, user, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -206,8 +221,8 @@ func GetArtistInfo(user *model.User, artistName string) (*model.Artist, error) {
 		return nil, err
 	}
 
-	url := fmt.Sprintf(apiArtistProfileUrl, artistName)
-	body, err := getWeb(url, GET, user, "", nil)
+	urlRaw := fmt.Sprintf(apiArtistProfileUrl, artistName)
+	body, err := getWeb(urlRaw, GET, user, "", nil)
 	if err != nil {
 		return nil, err
 	}

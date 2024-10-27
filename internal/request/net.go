@@ -2,8 +2,10 @@ package request
 
 import (
 	"IwaraDownload/model"
+	"IwaraDownload/pkg/files"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -54,10 +56,18 @@ func saveWebRspToFile(filePath string, url string, method METHOD, user *model.Us
 	if err != nil {
 		return err
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		rsp.Body.Close()
+		if err != nil {
+			log.Println("下载文件失败", err)
+			log.Println("删除...")
+			_ = files.Delete(filePath)
+		}
+	}()
 
 	// 创建本地文件
-	file, err := os.Create(filePath)
+	var file *os.File
+	file, err = os.Create(filePath)
 	if err != nil {
 		return err
 	}
