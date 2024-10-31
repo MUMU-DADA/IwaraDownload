@@ -137,6 +137,7 @@ func GetVideoData(user *model.User, page int) (*model.PageDataRoot, error) {
 		log.Fatalln("不支持的模式", user.Mode)
 	}
 	values.Add("limit", fmt.Sprintf("%d", pageNum))
+	values.Add("page", fmt.Sprintf("%d", page))
 	u.RawQuery = values.Encode()
 
 	body, err := getWeb(u.String(), GET, user, "", nil)
