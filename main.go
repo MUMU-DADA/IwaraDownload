@@ -360,7 +360,7 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 
 // Hot 下载热门视频
 func Hot(user *model.User, pageLimit int) error {
-	filePath := consts.FlagConf.WorkDIr + string(os.PathSeparator) + consts.HOT_DIR
+	filePath := consts.FlagConf.WorkDIr + string(os.PathSeparator) + consts.HOT_DIR + string(os.PathSeparator) + strconv.Itoa(int(time.Now().Month()))
 	err := files.CheckDirOrCreate(filePath)
 	if err != nil {
 		return err
