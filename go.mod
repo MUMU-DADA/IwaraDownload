@@ -1,12 +1,13 @@
 module IwaraDownload
 
-go 1.23.1
+go 1.24.1
 
 require (
+	github.com/MUMU-DADA/nodes v0.0.0-20250601092825-3eb92a4395b7
 	github.com/MUMU-DADA/structflag v0.0.0-20240921072034-3576d12e95a0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
-	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/stretchr/testify v1.9.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/stretchr/testify v1.10.0
 )
 
 require (

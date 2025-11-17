@@ -133,3 +133,8 @@ func TryFileLink(savePath, filePath string) {
 		}
 	}
 }
+
+// Rename 重命名
+func Rename(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
+}

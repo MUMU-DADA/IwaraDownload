@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -316,38 +317,31 @@ func Month(user *model.User, year int, month int, lastDownloadTime time.Time) er
 				}
 				continue
 			}
-			log.Println("文件不存在,准备获取视频下载地址")
 
-			videoDownload = true
+			// 快速检查视频是否存在
+			exist := request.QuickCheckVideoExist(video, savePath, filePath, "")
+			if !exist {
+				log.Println("快速检查视频不存在,开始下载视频")
 
-			// 开始下载视频
-			videoUrl, err := request.GetVideoDownloadUrl(user, video)
-			if err != nil {
-				log.Printf("获取视频地址失败: %s\n", err.Error())
-				// 跳过当前视频
-				continue
-			}
-			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
+				// 开始下载视频
+				videoUrl, err := request.GetVideoDownloadUrl(user, video)
+				if err != nil {
+					log.Printf("获取视频地址失败: %s\n", err.Error())
+					// 跳过当前视频
+					continue
+				}
+				log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
 
-			// 保存视频数据到数据库
-			saveVideoDatabase(savePath, video, videoUrl)
+				// 保存视频数据到数据库
+				saveVideoDatabase(savePath, video, videoUrl)
 
-			videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-			videoPath := savePath + string(os.PathSeparator) + videoName
-			startDownloadTime := time.Now()
-			log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
-			err = request.Download(user, videoUrl[0].Src.Download, videoPath)
-			if err != nil {
-				log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
-				// 跳过当前视频
-				continue
-			}
-			log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
-			downloadCount++
-
-			// 尝试软链接
-			if !consts.RUN_IN_WINDOWS {
-				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+				err = request.DownloadAndSaveVideo(user, video, savePath, filePath, videoUrl)
+				if err != nil {
+					// 跳过当前视频
+					continue
+				}
+				downloadCount++
+				videoDownload = true
 			}
 		}
 		request.DelaySwitch = videoDownload
@@ -405,38 +399,31 @@ func Hot(user *model.User, pageLimit int) error {
 			}
 			return false, pageNum, nil
 		}
-		log.Println("文件不存在,准备获取视频下载地址")
 
-		// 开始下载视频
-		videoUrl, err := request.GetVideoDownloadUrl(user, video)
-		if err != nil {
-			log.Printf("获取视频地址失败: %s\n", err.Error())
-			// 跳过当前视频
-			return false, pageNum, nil
+		// 快速检查视频是否存在
+		exist := request.QuickCheckVideoExist(video, savePath, filePath, "")
+		if !exist {
+			log.Println("快速检查视频不存在,开始下载视频")
+
+			// 开始下载视频
+			videoUrl, err := request.GetVideoDownloadUrl(user, video)
+			if err != nil {
+				log.Printf("获取视频地址失败: %s\n", err.Error())
+				// 跳过当前视频
+				return false, pageNum, nil
+			}
+			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
+
+			// 保存视频数据到数据库
+			saveVideoDatabase(savePath, video, videoUrl)
+
+			err = request.DownloadAndSaveVideo(user, video, savePath, filePath, videoUrl)
+			if err != nil {
+				// 跳过当前视频
+				return false, pageNum, nil
+			}
+			downloadCount++
 		}
-		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
-
-		// 保存视频数据到数据库
-		saveVideoDatabase(savePath, video, videoUrl)
-
-		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-		videoPath := savePath + string(os.PathSeparator) + videoName
-		startDownloadTime := time.Now()
-		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
-		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
-		if err != nil {
-			log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
-			// 跳过当前视频
-			return false, pageNum, nil
-		}
-		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
-		downloadCount++
-
-		// 尝试软链接
-		if !consts.RUN_IN_WINDOWS {
-			files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
-		}
-
 		return false, pageNum, nil
 	})
 
@@ -505,38 +492,31 @@ func Artist(user *model.User, lastDownloadTime time.Time) error {
 			}
 			return false, pageNum, nil
 		}
-		log.Println("文件不存在,准备获取视频下载地址")
 
-		// 开始下载视频
-		videoUrl, err := request.GetVideoDownloadUrl(user, video)
-		if err != nil {
-			log.Printf("获取视频地址失败: %s\n", err.Error())
-			// 跳过当前视频
-			return false, pageNum, nil
+		// 快速检查视频是否存在
+		exist := request.QuickCheckVideoExist(video, savePath, filePath, "")
+		if !exist {
+			log.Println("快速检查视频不存在,开始下载视频")
+
+			// 开始下载视频
+			videoUrl, err := request.GetVideoDownloadUrl(user, video)
+			if err != nil {
+				log.Printf("获取视频地址失败: %s\n", err.Error())
+				// 跳过当前视频
+				return false, pageNum, nil
+			}
+			log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
+
+			// 保存视频数据到数据库
+			saveVideoDatabase(savePath, video, videoUrl)
+
+			err = request.DownloadAndSaveVideo(user, video, savePath, filePath, videoUrl)
+			if err != nil {
+				// 跳过当前视频
+				return false, pageNum, nil
+			}
+			downloadCount++
 		}
-		log.Printf("视频地址: %s\n", videoUrl[0].Src.Download)
-
-		// 保存视频数据到数据库
-		saveVideoDatabase(savePath, video, videoUrl)
-
-		videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
-		videoPath := savePath + string(os.PathSeparator) + videoName
-		startDownloadTime := time.Now()
-		log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
-		err = request.Download(user, videoUrl[0].Src.Download, videoPath)
-		if err != nil {
-			log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
-			// 跳过当前视频
-			return false, pageNum, nil
-		}
-		log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
-		downloadCount++
-
-		// 尝试软链接
-		if !consts.RUN_IN_WINDOWS {
-			files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
-		}
-
 		return false, pageNum, nil
 	})
 
@@ -645,7 +625,6 @@ func once() {
 	log.Println("本次扫描任务耗时:", useTime)
 }
 
-var artistUidMap = make(map[string]string)
 var artistLastDownloadTimeMap = make(map[string]time.Time)
 
 func artistLoop() {
@@ -653,25 +632,36 @@ func artistLoop() {
 	config.Config.PrintLimit()
 
 	// 获取用户的ID信息
-	if len(artistUidMap) == 0 {
-		// 从配置文件中获取用户信息
-		for _, v := range config.Config.DownloadArtists {
-			info, err := request.GetArtistInfo(config.Config, v)
-			if err != nil {
-				log.Println("获取用户信息失败:", err)
-				continue
-			}
-			artistUidMap[v] = info.ID
-			log.Println("获取用户信息成功: 用户:", v, "ID:", info.ID)
+	if config.Config.ArtistUIDMap == nil {
+		config.Config.ArtistUIDMap = make(map[string]string)
+	}
+
+	// 从配置文件中获取用户信息
+	for _, v := range config.Config.DownloadArtists {
+		//  如果已经获取过ID则跳过
+		if _, ok := config.Config.ArtistUIDMap[v]; ok {
+			continue
 		}
+		info, err := request.GetArtistInfo(config.Config, v)
+		if err != nil {
+			log.Println("获取用户信息失败:", err)
+			continue
+		}
+		config.Config.ArtistUIDMap[v] = info.ID
+		log.Println("获取用户信息成功: 用户:", v, "ID:", info.ID)
 	}
 
 	config.Config.DownloadArtists = []string{}
-	for k, _ := range artistUidMap {
+	for k, _ := range config.Config.ArtistUIDMap {
 		config.Config.DownloadArtists = append(config.Config.DownloadArtists, k)
 	}
-	config.Config.ArtistUIDMap = artistUidMap
 	log.Println("获取用户ID信息完成", "下载用户", config.Config.DownloadArtists)
+	config.SaveConfig(config.Config)
+
+	// 排序下载用户
+	sort.Slice(config.Config.DownloadArtists, func(i, j int) bool {
+		return config.Config.DownloadArtists[i] < config.Config.DownloadArtists[j]
+	})
 
 	// 开始循环下载作者的任务
 	retryTimes := 0

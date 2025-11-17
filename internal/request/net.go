@@ -47,7 +47,7 @@ var (
 const (
 	setCookies = ""
 	ua         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.100 Safari/537.36" // 浏览器UA
-	reqDelay   = time.Second * 60                                                                                                       // 请求延时
+	reqDelay   = time.Second * 30                                                                                                       // 请求延时
 )
 
 // 保存页面文本到文件
@@ -65,19 +65,26 @@ func saveWebRspToFile(filePath string, url string, method METHOD, user *model.Us
 		}
 	}()
 
+	tempFile := fmt.Sprintf("%s.temp", filePath)
+	files.Delete(tempFile)
+
 	// 创建本地文件
 	var file *os.File
-	file, err = os.Create(filePath)
+	file, err = os.Create(tempFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+	defer files.Delete(tempFile)
 
 	// 将数据写入文件
 	_, err = io.Copy(file, rsp.Body)
 	if err != nil {
 		return err
 	}
+
+	// 下载完成后将临时文件重命名
+	err = files.Rename(tempFile, filePath)
 
 	return nil
 }

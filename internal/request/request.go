@@ -4,12 +4,15 @@ import (
 	"IwaraDownload/consts"
 	"IwaraDownload/model"
 	"IwaraDownload/pkg/config"
+	"IwaraDownload/pkg/files"
 	"IwaraDownload/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"sort"
+	"time"
 )
 
 const (
@@ -205,6 +208,116 @@ func GetVideoDownloadUrl(user *model.User, videoData model.Result) ([]*model.Vid
 	})
 
 	return videoSrc, nil
+}
+
+// QuickCheckVideoExist 快速检查视频是否存在
+func QuickCheckVideoExist(video model.Result, savePath, filePath string, urlName string) bool {
+	// 快速检查检查Source
+	if urlName == "" {
+		urlName = "Source"
+	}
+	videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, urlName))
+	videoPath := savePath + string(os.PathSeparator) + videoName
+	log.Printf("检查视频是否存在: %s 分辨率: %s\n", videoPath, urlName)
+
+	// 检查文件是否已经下载了
+	if !consts.RUN_IN_WINDOWS {
+		var existA, existB bool
+		// 检查download目录是否存在
+		if files.CheckFileExists(videoPath) {
+			existA = true
+		}
+		// 检查保存目录是否存在
+		if files.CheckFileExists(filePath + string(os.PathSeparator) + videoName) {
+			existB = true
+		}
+
+		if (existA || existB) && (existA && existB) {
+			// 有目录缺失则把文件复制到另一个目录
+			if existA {
+				// 将download目录文件复制到保存目录
+				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+			} else {
+				// 将保存目录文件复制到download目录
+				files.TryFileLink(filePath+string(os.PathSeparator)+videoName, videoPath)
+			}
+		}
+		if existA || existB {
+			log.Printf("视频已存在: %s 跳过...\n", filePath)
+			return true
+		}
+	} else {
+		var existA bool
+		// 检查download目录是否存在
+		if files.CheckFileExists(videoPath) {
+			existA = true
+		}
+		if existA {
+			log.Printf("视频已存在: %s 跳过...\n", videoPath)
+			return true
+		}
+	}
+	return false
+}
+
+// DownloadAndSaveVideo 下载视频并保存到指定路径
+func DownloadAndSaveVideo(user *model.User, video model.Result, savePath, filePath string, videoUrl []*model.Video) error {
+	videoName := files.SanitizeFileName(fmt.Sprintf("[%s] %s [%s].mp4", video.User.Username, video.Title, videoUrl[0].Name))
+	videoPath := savePath + string(os.PathSeparator) + videoName
+	startDownloadTime := time.Now()
+	log.Printf("开始下载视频: %s 分辨率: %s\n", videoPath, videoUrl[0].Name)
+
+	// 检查文件是否已经下载了
+	if !consts.RUN_IN_WINDOWS {
+		var existA, existB bool
+		// 检查download目录是否存在
+		if files.CheckFileExists(videoPath) {
+			existA = true
+		}
+		// 检查保存目录是否存在
+		if files.CheckFileExists(filePath + string(os.PathSeparator) + videoName) {
+			existB = true
+		}
+
+		if (existA || existB) && (existA && existB) {
+			// 有目录缺失则把文件复制到另一个目录
+			if existA {
+				// 将download目录文件复制到保存目录
+				files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+			} else {
+				// 将保存目录文件复制到download目录
+				files.TryFileLink(filePath+string(os.PathSeparator)+videoName, videoPath)
+			}
+		}
+		if existA || existB {
+			log.Printf("视频已存在: %s 跳过...\n", filePath)
+			return nil
+		}
+	} else {
+		var existA bool
+		// 检查download目录是否存在
+		if files.CheckFileExists(videoPath) {
+			existA = true
+		}
+		if existA {
+			log.Printf("视频已存在: %s 跳过...\n", videoPath)
+			return nil
+		}
+	}
+
+	err := Download(user, videoUrl[0].Src.Download, videoPath)
+	if err != nil {
+		log.Printf("下载视频失败: %s %s\n", videoName, err.Error())
+		// 跳过当前视频
+		return err
+	}
+	log.Println("视频下载完成, 耗时:", time.Since(startDownloadTime))
+
+	// 尝试软链接
+	if !consts.RUN_IN_WINDOWS {
+		files.TryFileLink(videoPath, filePath+string(os.PathSeparator)+videoName)
+	}
+	return nil
 }
 
 // Download 下载视频

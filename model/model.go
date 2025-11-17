@@ -59,8 +59,8 @@ type User struct {
 	// ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 临时数据 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	Cookies       []*http.Cookie    `json:"-"` // cookie
 	authorization string            // 当前使用的jwt
-	ArtistUIDMap  map[string]string `json:"-"` // 用户uid
-	NowArtist     string            `json:"-"` // 当前下载用户 (用户下载模式使用)
+	ArtistUIDMap  map[string]string `json:"artistUIDMap"` // 用户uid
+	NowArtist     string            `json:"-"`            // 当前下载用户 (用户下载模式使用)
 	// ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ 临时数据 ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 }
 
